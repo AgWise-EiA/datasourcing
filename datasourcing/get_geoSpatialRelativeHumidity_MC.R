@@ -10,7 +10,7 @@ if(any(installed_packages == FALSE)){
   install.packages(packages_required[!installed_packages])}
 
 # load required packages
-invisible(lapply(packages_required, library, character.only = TRUE))
+suppressWarnings(suppressPackageStartupMessages(invisible(lapply(packages_required, library, character.only = TRUE))))
 
 
 #################################################################################################################

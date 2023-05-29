@@ -10,7 +10,7 @@ if(any(installed_packages == FALSE)){
   install.packages(packages_required[!installed_packages])}
 
 # load required packages
-invisible(lapply(packages_required, library, character.only = TRUE))
+suppressWarnings(suppressPackageStartupMessages(invisible(lapply(packages_required, library, character.only = TRUE))))
 
 
 #################################################################################################################
@@ -91,7 +91,7 @@ summary_pointdata_SR <- function(rastLayer1= NULL, rastLayer2=NULL, gpsdata, pl_
     xy <- gpsdata[, c("longitude", "latitude")]
     SRi <- terra::extract(PlHvD, xy, method='simple', cells=FALSE)
     SRi <- SRi[,-1]
-    
+    SRi <- SRi/1000000
     # Compute the total  and monthly average SR 
 
       tmxiq <- t(SRi[c(1:length(SRi))])
@@ -321,6 +321,7 @@ get_SolarRadiation_pointSummarydata <- function(country, useCaseName, Crop, AOI 
       
       SolarRadiation_points_i <- terra::extract(SRi, xy,method='simple', cells=FALSE)
       SolarRadiation_points_i <- SolarRadiation_points_i[, -1]
+      SolarRadiation_points_i <- SolarRadiation_points_i/1000000
       
       ## get year
       groundi$Year <- yearPi
@@ -499,6 +500,7 @@ get_SolarRadiation_pointData <- function(country, useCaseName, Crop, AOI = FALSE
         xy <- ground[, c("longitude", "latitude")]
         SRi <- terra::extract(PlHvD, xy, method='simple', cells=FALSE)
         SRi <- SRi[,-1]
+        SRi <- SRi/1000000
         names(SRi) <- paste("SR", sub("^[^_]+", "", names(SRi)), sep="")
         SRi$plantingYear <-  str_extract(rasti, "[[:digit:]]+")
         SRi$harvestYear <- str_extract(rasti, "[[:digit:]]+")
@@ -524,6 +526,7 @@ get_SolarRadiation_pointData <- function(country, useCaseName, Crop, AOI = FALSE
         xy <- ground[, c("longitude", "latitude")]
         SRi <- terra::extract(PlHvD, xy, method='simple', cells=FALSE)
         SRi <- SRi[,-1]
+        SRi <- SRi/1000000
         
         names(SRi) <- sub("^[^_]+", "", names(SRi))
         if(length(grep("_366", names(SRi))) > 0){
@@ -602,6 +605,7 @@ get_SolarRadiation_pointData <- function(country, useCaseName, Crop, AOI = FALSE
       
       SRi <- terra::extract(rasti, xy,method='simple', cells=FALSE)
       SRi <- SRi[,-1]
+      SRi <- SRi/1000000
       names(SRi) <- sub("^[^_]+", "", names(SRi))
       names(SRi) <- paste("SR", names(SRi), sep="")
       SRi <- as.data.frame(t(SRi))
