@@ -30,8 +30,12 @@ invisible(lapply(packages_required, library, character.only = TRUE))
 #' its own unique planting and harvest dates and in this case, because the different GPS location can have non-overlapping dates, NA values are filled for dates prior to
 #' planting and later than harvest dates. When AOI is true, the user defined Planting_month_date and Harvest_month_date is considered for all locations and data is provided across the years. 
 #' 
-#' @examples: get_summaries(fd <- get_weather_pointData(inputData = readRDS("~/agwise-datacuration/dataops/datacuration/Data/useCase_Rwanda_RAB/Potato/result/compiled_fieldData.RDS"), 
-#' country = "Rwanda", AOI=FALSE, Planting_month_date=NULL, Harvest_month_date=NULL, ID="TLID", varName="temperatureMin", jobs=10)
+#' @examples: inputData <- data.frame(lon=c(29.3679, 29.3941,  29.390), lat=c(-1.539, -1.716, -1.716), 
+#' plantingDate  = c("2020-08-27", "2020-09-04", "2020-09-04"),
+#' harvestDate = c("2020-12-29", "2020-12-29", "2020-12-29"))
+#' get_weather_pointData(inputData = inputData, country = "Rwanda", AOI=FALSE, 
+#'                     Planting_month_date=NULL, Harvest_month_date=NULL, varName="temperatureMin", jobs=10)
+#'                
 get_weather_pointData <- function(country, inputData,  AOI=FALSE, Planting_month_date=NULL, Harvest_month_date=NULL, varName, jobs){
   
   ## 1. read all the raster files 
@@ -268,9 +272,8 @@ get_weather_pointData <- function(country, inputData,  AOI=FALSE, Planting_month
 #' 
 #' @return a data frame with lon, lat,teh top two admistrnative zones, soil properties with columns named with variable names attached with depth,  
 #' elevations variables attached for every GPS location 
-#' @examples: get_soil_DEM_pointData(country = "Rwanda", profile = TRUE, 
-#'                                  pathOut = "~/agwise-datasourcing/dataops/datasourcing/Data/Global_GeoData/transform/topography",
-#'                                 inputData = data.frame(lon=c(-1.538, -1.534), lat=c(29.37, 29.35)))
+#' @examples: get_soil_DEM_pointData(country = "Rwanda", profile = FALSE, pathOut = getwd(),
+#' inputData = data.frame(lon=c(29.35667, 29.36788), lat=c(-1.534350, -1.538792)))
 get_soil_DEM_pointData <- function(country, inputData, profile =FALSE, pathOut){
   
  
@@ -458,7 +461,6 @@ get_soil_DEM_pointData <- function(country, inputData, profile =FALSE, pathOut){
 
 
 
-
 ################################################################################
 #' Title Extract soil, DEM and daily weather data
 #'
@@ -492,6 +494,7 @@ extract_geoSpatialPointData <- function(country, useCaseName, Crop,
   }
   
   
+
   if(soilProfile == TRUE){
     pathOut1 <- paste("~/agwise-datasourcing/dataops/datasourcing/Data/useCase_", country, "_", useCaseName,"/", Crop, "/result/profile/", sep="")
     pathOut2 <- paste("~/agwise-datacuration/dataops/datacuration/Data/useCase_", country, "_", useCaseName,"/", Crop, "/raw/profile/", sep="")
@@ -530,11 +533,11 @@ extract_geoSpatialPointData <- function(country, useCaseName, Crop,
                                      country = country, AOI=AOI, Planting_month_date=Planting_month_date, 
                                      Harvest_month_date=Harvest_month_date, varName=varName, jobs=jobs)
       
-      # w_name <- ifelse(AOI == TRUE, paste(varName, "_PointData_AOI.RDS", sep=""), paste(varName, "_PointData_trial.RDS", sep=""))
-      # saveRDS(vData, paste(pathOut1, w_name, sep="/"))
-      # saveRDS(vData, paste(pathOut2, w_name, sep="/"))
-      # saveRDS(vData, paste(pathOut3, w_name, sep="/"))
-      # saveRDS(vData, paste(pathOut4, w_name, sep="/"))
+      w_name <- ifelse(AOI == TRUE, paste(varName, "_PointData_AOI.RDS", sep=""), paste(varName, "_PointData_trial.RDS", sep=""))
+      saveRDS(vData, paste(pathOut1, w_name, sep="/"))
+      saveRDS(vData, paste(pathOut2, w_name, sep="/"))
+      saveRDS(vData, paste(pathOut3, w_name, sep="/"))
+      saveRDS(vData, paste(pathOut4, w_name, sep="/"))
       
       wData[[i]] <-  vData
       i=i+1
@@ -546,11 +549,11 @@ extract_geoSpatialPointData <- function(country, useCaseName, Crop,
     sData <- get_soil_DEM_pointData(country = country, profile = soilProfile, 
                                     pathOut = pathOut2, inputData = inputData)
     
-    # s_name <- ifelse(AOI == TRUE, "SoilDEM_PointData_AOI.RDS",  "SoilDEM_PointData_trial.RDS")
-    # saveRDS(sData, paste(pathOut1, s_name, sep="/"))
-    # saveRDS(sData, paste(pathOut2, s_name, sep="/"))
-    # saveRDS(sData, paste(pathOut3, s_name, sep="/"))
-    # saveRDS(sData, paste(pathOut4, s_name, sep="/"))
+    s_name <- ifelse(AOI == TRUE, "SoilDEM_PointData_AOI.RDS",  "SoilDEM_PointData_trial.RDS")
+    saveRDS(sData, paste(pathOut1, s_name, sep="/"))
+    saveRDS(sData, paste(pathOut2, s_name, sep="/"))
+    saveRDS(sData, paste(pathOut3, s_name, sep="/"))
+    saveRDS(sData, paste(pathOut4, s_name, sep="/"))
     
     
   }
