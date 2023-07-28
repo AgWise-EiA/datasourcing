@@ -213,7 +213,7 @@ get_weather_pointData <- function(country, inputData,  AOI=FALSE, Planting_month
     data_points <- NULL
     for(i in 1:nrow(ground)){
       print(i)
-      groundi <- ground[i, c("longitude", "latitude", "plantingDate", "harvestDate","ID", "NAME_1", "NAME_2","yearPi", "yearHi", "pl_j", "hv_j", "growinglength")]
+      groundi <- ground[i, c("longitude", "latitude", "plantingDate", "harvestDate","ID", "NAME_1", "NAME_2","yearPi", "yearHi", "pl_j", "hv_j")]
       yearPi <- groundi$yearPi
       yearHi <- groundi$yearHi
       pl_j <- groundi$pl_j
