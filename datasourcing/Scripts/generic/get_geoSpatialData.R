@@ -126,10 +126,16 @@ get_weather_pointData <- function(country, inputData,  AOI=FALSE, Planting_month
         }else if (varName == "solarRadiation"){
           raini <- raini/1000000
         }
-        names(raini) <- paste(varName, sub("^[^_]+", "", names(raini)), sep="")
+       
         ground_adj <- ground
         lubridate::year(ground_adj$plantingDate) <- as.numeric(str_extract(rasti, "[[:digit:]]+"))
         lubridate::year(ground_adj$harvestDate) <- as.numeric(str_extract(rasti, "[[:digit:]]+"))
+        start <- as.Date(unique(ground_adj$plantingDate))
+        maxDaysDiff <- abs(max(min(pl_j) - max(hv_j)))
+        end <- start + as.difftime(maxDaysDiff, units="days")
+        ddates <- seq(from=start, to=end, by=1)
+        names(raini) <- paste(varName, ddates, sep="_")
+        # names(raini) <- paste(varName, sub("^[^_]+", "", names(raini)), sep="")
         ground_adj$plantingDate <- as.character(ground_adj$plantingDate)
         ground_adj$harvestDate <- as.character(ground_adj$harvestDate)
         ground2 <- cbind(ground_adj, raini)
@@ -145,10 +151,10 @@ get_weather_pointData <- function(country, inputData,  AOI=FALSE, Planting_month
       cls <- makeCluster(jobs)
       doParallel::registerDoParallel(cls)
       ## Rainfall
-      rf_result2 <- foreach(i = 1:(length(listRaster_RF)-1), .packages = c('terra', 'plyr', 'stringr','tidyr')) %dopar% {
-        listRaster_RF <- listRaster_RF[order(listRaster_RF)]
-        rast1 <- listRaster_RF[i]
-        rast2 <- listRaster_RF[i+1]
+      rf_result2 <- foreach(i = 1:(length(listRaster)-1), .packages = c('terra', 'plyr', 'stringr','tidyr')) %dopar% {
+        listRaster <- listRaster[order(listRaster)]
+        rast1 <- listRaster[i]
+        rast2 <- listRaster[i+1]
         rasti1 <- terra::rast(rast1, lyrs=c(pl_j:terra::nlyr(terra::rast(rast1))))
         rasti2 <- terra::rast(rast2, lyrs=c(1:hv_j))
         PlHvD <- c(rasti1, rasti2)
@@ -160,18 +166,20 @@ get_weather_pointData <- function(country, inputData,  AOI=FALSE, Planting_month
         }else if (varName == "solarRadiation"){
           raini <- raini/1000000
         }
-        names(raini) <- paste(varName,  sub("^[^_]+", "", names(raini)), sep="")
-        if(length(grep("_366", names(raini))) > 0){
-          raini <- raini[,-grep("_366", names(raini))]
-        }
+        
         ground_adj <- ground
         lubridate::year(ground_adj$plantingDate) <- as.numeric(str_extract(rast1, "[[:digit:]]+"))
         lubridate::year(ground_adj$harvestDate) <- as.numeric(str_extract(rast2, "[[:digit:]]+"))
-        ground2 <- cbind(ground_adj, raini)
         
+        start <- as.Date(unique(ground_adj$plantingDate))
+        maxDaysDiff <- as.numeric(max(ground_adj$harvestDate) - min(ground_adj$plantingDate))
+        end <- start + as.difftime(maxDaysDiff, units="days")
+        ddates <- seq(from=start, to=end, by=1)
+        names(raini) <- paste(varName, ddates, sep="_")
+        ground2 <- cbind(ground_adj, raini)
       }
       
-      data_points <- dplyr::bind_rows(rf_result)
+      data_points <- dplyr::bind_rows(rf_result2)
       stopCluster(cls)
     }
     
@@ -187,12 +195,15 @@ get_weather_pointData <- function(country, inputData,  AOI=FALSE, Planting_month
     ground$hv_j <-as.POSIXlt(ground$harvestDate)$yday
     
     # get the max number of days on the field to be used as column names. 
-    ground$growinglength <- ifelse(ground$yearPi == ground$yearHi, 
-                                   ground$hv_j - ground$pl_j,
-                                   365 - ground$pl_j + ground$hv_j)
+    start <- as.Date(min(ground$plantingDate))
+    maxDaysDiff <- abs(max(min(ground$pl_j) - max(ground$hv_j)))
+    end <- start + as.difftime(maxDaysDiff, units="days")
+    ddates <- seq(from=start, to=end, by=1)
     
+
     # create list of all possible column names to be able to rbind data from different sites with different planting and harvest dates ranges
-    rf_names <- c(paste0(varName, "_",  c(min(ground$pl_j):max(ground$hv_j))))
+    # rf_names <- c(paste0(varName, "_",  c(min(ground$pl_j):max(ground$hv_j))))
+    rf_names <- c(paste0(varName, "_",  ddates))
     rf_names2 <-  as.data.frame(matrix(nrow=length(rf_names), ncol=1))
     colnames(rf_names2) <- "dataDate"
     rf_names2[,1] <- rf_names
@@ -493,7 +504,7 @@ extract_geoSpatialPointData <- function(country, useCaseName, Crop,
     inputData <- readRDS(paste("~/agwise-datacuration/dataops/datacuration/Data/useCase_",country, "_", useCaseName,"/", Crop, "/result/compiled_fieldData.RDS", sep=""))
   }
   
-  
+   #inputData <- inputData[1:10, ]
 
   if(soilProfile == TRUE){
     pathOut1 <- paste("~/agwise-datasourcing/dataops/datasourcing/Data/useCase_", country, "_", useCaseName,"/", Crop, "/result/profile/", sep="")
@@ -504,7 +515,7 @@ extract_geoSpatialPointData <- function(country, useCaseName, Crop,
     pathOut1 <- paste("~/agwise-datasourcing/dataops/datasourcing/Data/useCase_", country, "_", useCaseName,"/", Crop, "/result/", sep="")
     pathOut2 <- paste("~/agwise-datacuration/dataops/datacuration/Data/useCase_", country, "_", useCaseName,"/", Crop, "/raw/", sep="")
     pathOut3 <- paste("~/agwise-responsefunctions/dataops/responsefunctions/Data/useCase_", country, "_", useCaseName,"/", Crop, "/raw/", sep="")
-    pathOut4 <- paste("~/agwise-potentialyield/dataops/potentialyield/Data/useCase_", country, "_", useCaseName,"/", Crop, "/raw/", sep="")
+    pathOut4 <- NULL
   }
   
   if (!dir.exists(pathOut1)){
@@ -519,9 +530,12 @@ extract_geoSpatialPointData <- function(country, useCaseName, Crop,
     dir.create(file.path(pathOut3), recursive = TRUE)
   }
   
-  if (!dir.exists(pathOut4)){
-    dir.create(file.path(pathOut4), recursive = TRUE)
+  if(!is.null(pathOut4)){
+    if (!dir.exists(pathOut4)){
+      dir.create(file.path(pathOut4), recursive = TRUE)
+    }
   }
+  
   
   
   
@@ -537,7 +551,10 @@ extract_geoSpatialPointData <- function(country, useCaseName, Crop,
       saveRDS(vData, paste(pathOut1, w_name, sep="/"))
       saveRDS(vData, paste(pathOut2, w_name, sep="/"))
       saveRDS(vData, paste(pathOut3, w_name, sep="/"))
-      saveRDS(vData, paste(pathOut4, w_name, sep="/"))
+      # saveRDS(vData, paste(pathOut4, w_name, sep="/"))
+      if(!is.null(pathOut4)){
+        saveRDS(vData, paste(pathOut4, w_name, sep="/"))
+      }
       
       wData[[i]] <-  vData
       i=i+1
@@ -553,9 +570,9 @@ extract_geoSpatialPointData <- function(country, useCaseName, Crop,
     saveRDS(sData, paste(pathOut1, s_name, sep="/"))
     saveRDS(sData, paste(pathOut2, s_name, sep="/"))
     saveRDS(sData, paste(pathOut3, s_name, sep="/"))
-    saveRDS(sData, paste(pathOut4, s_name, sep="/"))
-    
-    
+    if(!is.null(pathOut4)){
+      saveRDS(sData, paste(pathOut4, s_name, sep="/"))
+    }
   }
   
   if(weatherData == TRUE & soilData == TRUE){
