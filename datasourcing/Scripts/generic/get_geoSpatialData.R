@@ -248,7 +248,13 @@ get_weather_pointData <- function(country, inputData,  AOI=FALSE, Planting_month
       }else if (varName == "solarRadiation"){
         raini <- raini/1000000
       }
-      names(raini) <- paste(varName,  sub("^[^_]+", "", names(raini)), sep="")
+      
+      
+      start <- as.Date(unique(groundi$plantingDate))
+      maxDaysDiff <- abs(max(min(pl_j) - max(hv_j)))
+      end <- start + as.difftime(maxDaysDiff, units="days")
+      ddates <- seq(from=start, to=end, by=1)
+      names(raini) <- paste(varName, ddates, sep="_")
       raini <- as.data.frame(t(raini))
       raini$dataDate <- rownames(raini)
       rownames(raini) <- NULL
