@@ -1,0 +1,218 @@
+---
+title: "AgWise Data Sourcing"
+output: html_document
+date: "2023-07-28"
+---
+
+
+### <span style="color:blue;"> **1. The data architecture**
+#### Data sourcing in this case is referring to two major activities: 
+  - Gathering (without aggregating or curating) **field trial and other relevant data** from several sources. 
+  - **Extracting the secondary geospatial data** for both the trial and the area of interest (AOI)
+  
+<br>
+
+#### The AgWise data sourcing script and outputs are hosted in:
+  - **agwise-datasourcing/dataops/datasourcing**
+  
+<br>
+
+#### Similar to the other AgWise modules, the data sourcing module has a separate space for ** Data and Script**
+  - **agwise-datasourcing/dataops/datasourcing/Scripts** 
+  - **agwise-datasourcing/dataops/datasourcing/Data**
+
+<br>
+
+#### <span style="color:blue;"> **1.1 The Scripts** folder has two sub folders:
+
+  - **agwise-datasourcing/dataops/datasourcing/Scripts/generic**
+  - **agwise-datasourcing/dataops/datasourcing/Scripts/useCases** 
+
+<br>
+
+##### The generic folder contains generalized scripts while the instances of running the generic scripts for specifc country, use case and crop combinations is host in the later. 
+##### In this system, for every country, use case and crop combinations, a unique folder is created to host all the data sourcing scripts run for it and this is implmented in a standadrd way across all AgWuse modules. 
+##### For example, scripts in ~/agwise-datasourcing/dataops/datasourcing/Scripts/useCases/UseCase_Rwanda_RAB/potato are run to get geospatial weather, soil and DEM data for potato growing areas in Rwanda for RAB use case.
+
+ 
+<br>
+
+#### <span style="color:blue;"> **1.2 The Data** folder has global and usecase specifc data:
+
+  - **agwise-datasourcing/dataops/datasourcing/Data/Global_GeoData**
+    - holding global geo-spatial layers 
+  - **agwise-datasourcing/dataops/datasourcing/Data/useCase_Rwanda_RAB** 
+    - is an example for how folders are created for specific use case. In this space the data sourced from several database in their orignal format withou being aggregated should be saved in **Landing**
+    - For example, **agwise-datasourcing/dataops/datasourcing/Data/useCase_Rwanda_RAB/Rice/Landing/fieldData** 
+    
+
+<br>
+  
+#### Currently available **global geo-spatiallayers**:
+
+   - Rainfall (CHIRPS and AgEra5)
+   - Relative Humidity (AgEra5)
+   - Soil (iSDA (0-20 and 20-50 cm at 1 km res) and Soil Grids (the 6 profiles and also 0 - 30 cm depth, at 1 km))
+   - Solar Radiation (AgEra5)
+   - Temperature min and max (AgEra5)
+   - Wind Speed (AgEra5)
+   - Topography data is sourced at the time of running scripts, there is not global DEM data saved in CG Labs
+   
+<br>
+#### When a use case is working with multiple crops, every crop will have its own folder, e.g., 
+
+   - ~/agwise-datasourcing/dataops/datasourcing/Data/useCase_Rwanda_RAB/Potato
+   - ~/agwise-datasourcing/dataops/datasourcing/Data/useCase_Rwanda_RAB/Maize
+   - ~/agwise-datasourcing/dataops/datasourcing/Data/useCase_Rwanda_RAB/Rice
+   
+<br>
+#### <span style="color:red;"> **Note: data is stored only in CG Labs, never commit data to GitHub**
+<br>
+
+
+
+
+###############################################################################
+### <span style="color:green;"> **2. The data flow**
+
+##### In every AgWise module and for every country, use case and crop combinations, the following structure is used (showm with examples): 
+
+  - **Landing**   
+    - for data as received from partners, not aggregated and not cleaned up
+    - e.g., agwise-datasourcing/dataops/datasourcing/Data/useCase_Rwanda_RAB/Potato/Landing)
+  - **raw**   
+    - data processed in another modeule and is used as a raw data in the current one, e.g., the result of data sourcing module(geospatila data) is saved in the response functions module raw.
+    -  e.g. agwise-datasourcing/dataops/datasourcing/Data/useCase_Rwanda_RAB/Potato/raw
+  - **transform**
+    - contains intermediate results of processing data either in Landing or in raw, plots and it includes plots, tables, data files, etc.
+    - e.g., agwise-datasourcing/dataops/datasourcing/Data/useCase_Rwanda_RAB/Potato/transform
+  - **feature**  
+    - contians the configuration files, being developed 
+    e.g., agwise-datasourcing/dataops/datasourcing/Data/useCase_Rwanda_RAB/Potato/feature
+  - **result** 
+    - contains the final output of the module
+    -  e.g. agwise-datasourcing/dataops/datasourcing/Data/useCase_Rwanda_RAB/Potato/result
+  
+<br>
+
+#####  The geo-spatial data extraction process has the follwoing steps and it is done for weather, soil and DEM data
+  - **crop**  the global data by country
+  - **transforms** the layers with relevant pedo-transfer functions
+  - **derives** other variables such as slope, TPI, etc
+  - **extracts** daily data for weather and point data for soil and DEM variables
+  - **formats** the weather data to be further processed in potential module
+  - **saves result** to the relevant folder as defined in AgWise architecture, e.g.,   
+    - ~/agwise-datasourcing/dataops/**datasourcing**/Data/useCase_Rwanda_RAB/Maize/**result** 
+    - ~/agwise-datacuration/dataops/**datacuration**/Data/useCase_Rwanda_RAB/Maize/**raw** 
+    - ~/agwise-responsefunctions/dataops/**responsefunctions**/Data/useCase_Rwanda_RAB/Maize/**raw** 
+    - ~/agwise-potentialyield/dataops/**potentialyield**/Data/useCase_Rwanda_RAB/Maize/**raw** 
+   
+<br>
+
+#####  The **field data** preparation steps:
+  - select relevant variables across different data sets
+  - standardize units and formats of variables
+  - aggregate data in to one flat file
+  - save the result in data sourcing module **result** folder and the datacuration **raw** folder
+    - create the correct folder 
+    - name the file **compiled_fieldData** and save it as **.RDS** in in datacuration result
+    
+<br>
+
+#####  The **GPS coordinates for AOI**:
+  - in most cases, partners provide regions or AEZ that they target
+  - GPS are to be created using the **"~/agwise-datasourcing/dataops/datasourcing/Scripts/generic/get_GridCoordinates.R"**
+  - This result need to be saved as **AOI_GPS.RDS** in datacuration result 
+
+<br>
+
+
+###############################################################################
+### <span style="color:magenta;"> **3. Data sourcing steps**
+
+##### Sourcing point based geo-sptial data can be done only after identifying the GPS coordinates of the target area and in case of weather related variables it also needs information on the start and end of the season. Once that is done the following stsp can be followed to get the geo-spatila soil, weather and DEM data.
+<br>
+
+3.1 Make sure there is data on GPS, planting and harvest dates for your target area and the data has the correct variables. It also nee to be saved in the **result** folder of **datacuration** under the relevant use case and crop combinations:
+  - for trial sites **compiled_fieldData.RDS** is required in the correct folder, e.g., **"~/agwise-datacuration/dataops/datacuration/Data/useCase_Rwanda_RAB/Maize/result/compiled_fieldData.RDS"**
+  - for AOI **AOI_GPS.RDS** is required within the correct folder, e.g., **"~/agwise-datacuration/dataops/datacuration/Data/useCase_Rwanda_RAB/Maize/result/AOI_GPS.RDS"**
+  
+<br>
+3.2. Create a folder under agwise-datasourcing/dataops/datasourcing/Scripts/useCases/.... In this folder you will have the script to ex-cute data sourcing functions for your use case crop combination 
+  - for example, **agwise-datasourcing/dataops/datasourcing/Scripts/useCases/useCase_Rwanda_RAB/Maize**  (use the relevant useCase_county_usecaseName/crop for your target)
+  
+<br>
+3.3. copy the script **get_geoSpatialData_RAB_Maize** from **agwise-datasourcing/dataops/datasourcing/Scripts/useCases/useCase_Rwanda_RAB/Maize** to the folder you just created at step 3.2.
+  - this script sources **get_geoSpatialData.R** which is managing the cropping, transforming and extracting point data
+  
+<br>
+3.4  fill in the correct arguments in the script you copied, i.e., **get_geoSpatialData_RAB_Maize**  in your newly created folder:
+  - change the country, use case name, crop, planting dates, harvest dates, etc. For dipper understanding of the different arguments please refer to the documentation in get_geoSpatialData.R
+<br>
+
+
+###############################################################################
+
+#### Making use of the generic function for specific use case is demonstrated below.
+
+
+
+```{r setup, include=TRUE}
+knitr::opts_chunk$set(echo = TRUE)
+
+#################################################################################################################
+## source "get_geoSpatialRainfall.R"
+## all requirements are provided with within script documentation
+#################################################################################################################
+# source("~/agwise-datasourcing/dataops/datasourcing/Scripts/generic/get_geoSpatialData.R")
+
+
+#################################################################################################################
+## weather + DEM and soil data from the 6 depth of ISRIC soils. this is to be used for crop models for trial sites
+## the result is to be found in "~/agwise-datasourcing/dataops/datasourcing/Data/useCase_Rwanda_RAB/Maize/result/profile/"
+#################################################################################################################
+
+# RAB_maize_weather_soil_trial_profile <- extract_geoSpatialPointData(country = "Rwanda", useCaseName = "RAB", Crop = "Maize", 
+#                                  AOI=FALSE, Planting_month_date=NULL, Harvest_month_date=NULL, 
+#                                  soilData = TRUE, weatherData = TRUE, soilProfile = TRUE, 
+#                                  jobs =10)
+#
+#################################################################################################################
+## weather + DEM and the 2 depth iSDA soil data for trial sites to be used for machine learning and QUEFTS analysis for trial sites
+## the result is to be found in "~/agwise-datasourcing/dataops/datasourcing/Data/useCase_Rwanda_RAB/Maize/result/"
+#################################################################################################################
+# 
+# RAB_maize_weather_soil_trial <- extract_geoSpatialPointData(country = "Rwanda", useCaseName = "RAB", Crop = "Maize", 
+#                                                                     AOI=FALSE, Planting_month_date=NULL, Harvest_month_date=NULL, 
+#                                                                     soilData = TRUE, weatherData = TRUE, soilProfile = FALSE, 
+#                                                                     jobs =10)
+
+#################################################################################################################
+## weather + DEM and the 6 depth ISRIC soil data  for AOI, is to be used within crop models for AOI
+## the result is to be found in "~/agwise-datasourcing/dataops/datasourcing/Data/useCase_Rwanda_RAB/Maize/result/profile"
+#################################################################################################################
+# RAB_maize_weather_soil_AOI_profile <- extract_geoSpatialPointData(country = "Rwanda", useCaseName = "RAB", Crop = "Maize", 
+#                                                             AOI=TRUE, Planting_month_date="08-10", Harvest_month_date="01-25", 
+#                                                             soilData = TRUE, weatherData = TRUE, soilProfile = TRUE, 
+#                                                             jobs =10)
+
+
+#################################################################################################################
+## weather + DEM and the 2 depth iSDA soil data for trial sites, to be used for machine laearning and QUEFTS for AOI
+## the result is to be found in "~/agwise-datasourcing/dataops/datasourcing/Data/useCase_Rwanda_RAB/Maize/result/"
+#################################################################################################################
+# RAB_maize_weather_soil_AOI <- extract_geoSpatialPointData(country = "Rwanda", useCaseName = "RAB", Crop = "Maize", 
+#                                                                   AOI=TRUE, Planting_month_date="08-10", Harvest_month_date="01-25", 
+#                                                                   soilData = TRUE, weatherData = TRUE, soilProfile = FALSE, 
+#                                                                   jobs =10)
+#
+#################################################################################################################
+## processing the weather data (transpose, add metadata and save the result in potential yield raw). This is done only when soilProfile = TRUE
+#################################################################################################################
+# transpose_weather_trial <- get_data_4CropModels(country = "Rwanda",  useCaseName = "RAB", Crop = "Maize", AOI = FALSE, Planting_month_date = NULL, jobs=10)
+# transpose_weather_AOI <- get_data_4CropModels(country = "Rwanda",  useCaseName = "RAB", Crop = "Maize", AOI = TRUE, Planting_month_date = "08-10", jobs=10)
+# 
+
+```
+
+
