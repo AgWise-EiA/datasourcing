@@ -1,8 +1,23 @@
 
+#################################################################################################################
+# Sourcing required packages 
+#################################################################################################################
+#################################################################################################################
+packages_required <- c("httr", "dplyr", "tidyr", "rrapply", "stringr", "plyr")
+
+
+# check and install packages that are not yet installed
+installed_packages <- packages_required %in% rownames(installed.packages())
+if(any(installed_packages == FALSE)){
+  install.packages(packages_required[!installed_packages])}
+
+# load required packages
+suppressWarnings(suppressPackageStartupMessages(invisible(lapply(packages_required, library, character.only = TRUE))))
+
+
+
 #Function to list ODK form details and find form ids on ONA server
 findONAdatasets <- function(user, pw){
-  
-  require(httr)
   
   url <- paste0("https://api.ona.io/api/v1/data?owner", user) 
   
@@ -22,8 +37,6 @@ findONAdatasets <- function(user, pw){
 #Function to get raw API output data from ONA server for formid
 getONAdata <- function(user, pw, id){
   
-  require(httr)
-  
   url <- paste0("https://api.ona.io/api/v1/data/", id)
     
   f <- GET(url, httr::authenticate(user, pw))
@@ -38,11 +51,7 @@ getONAdata <- function(user, pw, id){
 #Function to decompose raw ONA output into list of dataframes based on hierarchy of nested/consecutive repeat loops
 decomposeONAdata <- function(r){
   
-  require(dplyr)
-  require(tidyr)
-  require(rrapply)
-  require(stringr)
-  
+
   ml <- list()
 
   if(length(r) > 0){

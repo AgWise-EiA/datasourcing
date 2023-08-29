@@ -41,6 +41,8 @@ crop_geoSpatial_WindSpeed <- function(country, useCaseName, Crop, dataSource, ov
     fileName <- "/AgEra_geospatial_WindSpeed.tif"
   }
   
+  
+
  
   if (!dir.exists(pathOut)){
     dir.create(file.path(pathOut), recursive = TRUE)
@@ -105,11 +107,11 @@ summary_pointdata_WS <- function(rastLayer1= NULL, rastLayer2=NULL, gpsdata, pl_
         }
         
         
-        if(length(mrf) > 6){## if the crop is > 6 month on the field
-          mrf <- c(mrf, rep("NA", 6 - length(mrf)))
+        if(length(mrf) > 12){## if the crop is > 6 month on the field
+          mrf <- c(mrf, rep("NA", 12 - length(mrf)))
         }
         
-        mrf_names <- c(paste0("WindSpeed_month", c(1:6)))
+        mrf_names <- c(paste0("WindSpeed_month", c(1:12)))
         for (h in 1:length(mrf_names)) {
           colname <- mrf_names[h]
           gpsdata[[colname]][m] <- mrf[h]
@@ -171,8 +173,8 @@ get_WindSpeed_pointSummarydata <- function(country, useCaseName, Crop, AOI = FAL
   }
   
   pathOut1 <- paste("/home/jovyan/agwise-datasourcing/dataops/datasourcing/Data/useCase_", country, "_",useCaseName, "/", Crop, "/result/WindSpeed", sep="")
-  pathOut2 <- paste("/home/jovyan/agwise/AgWise_Data/potential_yield/useCase_", country, "_",useCaseName, "/", Crop, "/raw/WindSpeed", sep="")
-  pathOut3 <- paste("/home/jovyan/agwise/AgWise_Data/response_functions/useCase_", country, "_",useCaseName, "/", Crop, "/raw/WindSpeed", sep="")
+  pathOut2 <- paste("/home/jovyan/agwise-potentialyield/dataops/potentialyield/Data/useCase_", country, "_",useCaseName, "/", Crop, "/raw/WindSpeed", sep="")
+  pathOut3 <- paste("/home/jovyan/agwise-responsefunctions/dataops/responsefunctions/Data/useCase_", country, "_",useCaseName, "/", Crop, "/raw/WindSpeed", sep="")
   
   
   
@@ -190,7 +192,9 @@ get_WindSpeed_pointSummarydata <- function(country, useCaseName, Crop, AOI = FAL
   
   
   if(AOI == TRUE){
-    countryCoord <- readRDS(paste("~/agwise-datasourcing/dataops/datasourcing/Data/useCase_", country, "_",useCaseName, "/", Crop, "/raw/AOI_GPS.RDS", sep=""))
+    countryCoord <- readRDS(paste("~/agwise-datacuration/dataops/datacuration/Data/useCase_", country, "_",useCaseName, "/", Crop, "/result/AOI_GPS.RDS", sep=""))
+    
+    # countryCoord <- readRDS(paste("~/agwise-datasourcing/dataops/datasourcing/Data/useCase_", country, "_",useCaseName, "/", Crop, "/raw/AOI_GPS.RDS", sep=""))
     countryCoord <- unique(countryCoord[, c("longitude", "latitude")])
     countryCoord <- countryCoord[complete.cases(countryCoord), ]
     
@@ -337,11 +341,11 @@ get_WindSpeed_pointSummarydata <- function(country, useCaseName, Crop, AOI = FAL
         }
       }
       
-      if(length(mrf) > 6){## if the crop is > 6 month on the field
-        mrf <- c(mrf, rep("NA", 6 -length(mrf)))
+      if(length(mrf) > 12){## if the crop is > 6 month on the field
+        mrf <- c(mrf, rep("NA", 12 -length(mrf)))
       }
       
-      mrf_names <- c(paste0("WindSpeed_month", c(1:6)))
+      mrf_names <- c(paste0("WindSpeed_month", c(1:12)))
       for (h in 1:length(mrf_names)) {
         colname <- mrf_names[h]
         groundi[[colname]] <- mrf[h]
@@ -418,8 +422,9 @@ get_WindSpeed_pointData <- function(country, useCaseName, Crop, AOI = FALSE, ove
   }
   
   pathOut1 <- paste("/home/jovyan/agwise-datasourcing/dataops/datasourcing/Data/useCase_", country, "_",useCaseName, "/", Crop, "/result/WindSpeed", sep="")
-  pathOut2 <- paste("/home/jovyan/agwise/AgWise_Data/potential_yield/useCase_", country, "_",useCaseName, "/", Crop, "/raw/WindSpeed", sep="")
-  pathOut3 <- paste("/home/jovyan/agwise/AgWise_Data/response_functions/useCase_", country, "_",useCaseName, "/", Crop, "/raw/WindSpeed", sep="")
+  pathOut2 <- paste("/home/jovyan/agwise-potentialyield/dataops/potentialyield/Data/useCase_", country, "_",useCaseName, "/", Crop, "/raw/WindSpeed", sep="")
+  pathOut3 <- paste("/home/jovyan/agwise-responsefunctions/dataops/responsefunctions/Data/useCase_", country, "_",useCaseName, "/", Crop, "/raw/WindSpeed", sep="")
+  
   
   
   if (!dir.exists(pathOut1)){
@@ -437,7 +442,9 @@ get_WindSpeed_pointData <- function(country, useCaseName, Crop, AOI = FALSE, ove
   
   
   if(AOI == TRUE){
-    countryCoord <- readRDS(paste("~/agwise-datasourcing/dataops/datasourcing/Data/useCase_", country, "_",useCaseName, "/", Crop, "/raw/AOI_GPS.RDS", sep=""))
+    countryCoord <- readRDS(paste("~/agwise-datacuration/dataops/datacuration/Data/useCase_", country, "_",useCaseName, "/", Crop, "/result/AOI_GPS.RDS", sep=""))
+    
+    # countryCoord <- readRDS(paste("~/agwise-datasourcing/dataops/datasourcing/Data/useCase_", country, "_",useCaseName, "/", Crop, "/raw/AOI_GPS.RDS", sep=""))
     countryCoord <- unique(countryCoord[, c("longitude", "latitude")])
     countryCoord <- countryCoord[complete.cases(countryCoord), ]
     

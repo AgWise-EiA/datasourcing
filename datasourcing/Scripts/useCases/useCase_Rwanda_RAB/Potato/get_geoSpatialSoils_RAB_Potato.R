@@ -25,7 +25,7 @@ transform_soils_data(country = "Rwanda", useCaseName = "RAB", Crop = "Potato", r
 ### extracting soil geo-spatial data for GPS locations (this is essential to get for location we have field/survey data)
 #################################################################################################################
 
-RAB_potato_soil <- extract_soil_pointdata(country = "Rwanda", useCaseName = "RAB", Crop = "Potato", AOI = FALSE, ID = "TLID")
+RAB_potato_soil <- extract_soil_pointdata(country = "Rwanda", useCaseName = "RAB", Crop = "Potato", AOI = FALSE, ID = "TLID", profile = FALSE)
 
 #################################################################################################################
 ## extracting soil geo-spatial data for GPS locations for predictions, for AOI

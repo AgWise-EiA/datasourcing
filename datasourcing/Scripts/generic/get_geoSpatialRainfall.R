@@ -15,6 +15,8 @@ suppressWarnings(suppressPackageStartupMessages(invisible(lapply(packages_requir
 
 
 #################################################################################################################
+
+
 #################################################################################################################
 # 2. Function to crop the rainfall data over the use case extent -------------------------------------------
 #' @description a function to crop the rainfall global layer but this does duplicate a large volume of data , it is better directly to source from the global data
@@ -32,7 +34,7 @@ crop_geoSpatial_rainfall <- function(country, useCaseName, Crop, dataSource, ove
   # 2.1. Prepare the output & read the rainfall data #### 
   #TODO create a look up table to check use case - country names
   ## get country abbreviation to used in gdam function
-  countryCC <- countrycode(country, origin = 'country.name', destination = 'iso3c')
+  # countryCC <- countrycode(country, origin = 'country.name', destination = 'iso3c')
   
   ## create a directory to store the cropped data: 
  
@@ -55,7 +57,7 @@ crop_geoSpatial_rainfall <- function(country, useCaseName, Crop, dataSource, ove
   }
   
   ## read the relevant shape file from gdam to be used to crop the global data
-  countryShp <- geodata::gadm(countryCC, level = 3, path='.')
+  countryShp <- geodata::gadm(country, level = 3, path='.')
   
   # 2.2. Cropped the rainfall layers and save the results #### 
   ## crop the layers 
@@ -107,7 +109,7 @@ summary_pointdata_rainfall <- function(rastLayer1=NULL, rastLayer2=NULL, gpsdata
   rainiq <- t(raini[c(2:length(raini))])
   gpsdata$totalRF <- colSums(rainiq)
   
-  ## The number of rainy days (thr= 2 mm) over the growing period 
+  ## The number of rainy days (thr >= 2 mm) over the growing period 
   gpsdata$nrRainyDays <- NULL
   for (m in 1:nrow(raini)){
     # print(m)
@@ -221,7 +223,9 @@ get_rf_pointData <- function(country, useCaseName, Crop, AOI = FALSE, overwrite 
  
   # Input point data AOI / Trial
   if(AOI == TRUE){
-    countryCoord <- readRDS(paste("~/agwise-datasourcing/dataops/datasourcing/Data/useCase_", country, "_",useCaseName, "/", Crop, "/raw/AOI_GPS.RDS", sep=""))
+    # countryCoord <- readRDS(paste("~/agwise-datasourcing/dataops/datasourcing/Data/useCase_", country, "_",useCaseName, "/", Crop, "/raw/AOI_GPS.RDS", sep=""))
+    countryCoord <- readRDS(paste("~/agwise-datacuration/dataops/datacuration/Data/useCase_", country, "_",useCaseName, "/", Crop, "/result/AOI_GPS.RDS", sep=""))
+    
     countryCoord <- unique(countryCoord[, c("longitude", "latitude")])
     countryCoord <- countryCoord[complete.cases(countryCoord), ]
     
@@ -484,7 +488,9 @@ get_rf_pointSummarydata <- function(country, useCaseName, Crop, AOI = FALSE, ove
   
   # Input point data AOI / Trial
   if(AOI == TRUE){
-    countryCoord <- readRDS(paste("~/agwise-datasourcing/dataops/datasourcing/Data/useCase_", country, "_",useCaseName, "/", Crop, "/raw/AOI_GPS.RDS", sep=""))
+    # countryCoord <- readRDS(paste("~/agwise-datasourcing/dataops/datasourcing/Data/useCase_", country, "_",useCaseName, "/", Crop, "/raw/AOI_GPS.RDS", sep=""))
+    countryCoord <- readRDS(paste("~/agwise-datacuration/dataops/datacuration/Data/useCase_", country, "_",useCaseName, "/", Crop, "/result/AOI_GPS.RDS", sep=""))
+    
     countryCoord <- unique(countryCoord[, c("longitude", "latitude")])
     countryCoord <- countryCoord[complete.cases(countryCoord), ]
     
@@ -727,7 +733,9 @@ get_rf_rasterSummarydata <- function(country, useCaseName, Crop, AOI = FALSE, ov
     countryShp <- sf::st_as_sf(countryShp)
   } else {
     # Case AOI = True
-    countryCoord <- readRDS(paste("~/agwise-datasourcing/dataops/datasourcing/Data/useCase_", country, "_",useCaseName, "/", Crop, "/raw/AOI_GPS.RDS", sep=""))
+    countryCoord <- readRDS(paste("~/agwise-datacuration/dataops/datacuration/Data/useCase_", country, "_",useCaseName, "/", Crop, "/result/AOI_GPS.RDS", sep=""))
+    
+    # countryCoord <- readRDS(paste("~/agwise-datasourcing/dataops/datasourcing/Data/useCase_", country, "_",useCaseName, "/", Crop, "/raw/AOI_GPS.RDS", sep=""))
     countryCoord <- unique(countryCoord[, c("longitude", "latitude")])
     countryCoord <- countryCoord[complete.cases(countryCoord), ]
     # get the extent and create a bounding box based on the extent

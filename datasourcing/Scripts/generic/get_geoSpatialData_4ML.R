@@ -46,7 +46,7 @@ join_geospatial_4ML <- function(country, useCaseName, Crop, AOI, Planting_month_
   # pathOut2 <- paste("/home/jovyan/agwise-potentialyield/dataops/potentialyield/Data/useCase_", country, "_",useCaseName, "/", Crop, "/raw/data_4ML", sep="")
   pathOut3 <- paste("/home/jovyan/agwise-responsefunctions/dataops/responsefunctions/Data/useCase_", country, "_",useCaseName, "/", Crop, "/raw/data_4ML", sep="")
   
-  
+
   if (!dir.exists(pathOut1)){
     dir.create(file.path(pathOut1), recursive = TRUE)
   }
@@ -64,7 +64,7 @@ join_geospatial_4ML <- function(country, useCaseName, Crop, AOI, Planting_month_
   if (AOI == FALSE){
     ## trial sites info
     GPS_Data <- readRDS(paste("~/agwise-datacuration/dataops/datacuration/Data/useCase_",country, "_",useCaseName, "/", Crop, "/result/compiled_fieldData.RDS", sep=""))  
-    GPS_Data$Yield <- round(GPS_Data$TY,3)
+    GPS_Data$Yield <- round(GPS_Data$TY, 3)
     GPS_Data <- subset(GPS_Data, select=-c(TY))
     ## geo spatial point data with no time dimension
     Topography_PointData <- readRDS(paste("/home/jovyan/agwise-datasourcing/dataops/datasourcing/Data/useCase_",country, "_",useCaseName, "/", Crop, "/result/Topography/Topography_PointData_trial.RDS", sep=""))
@@ -81,47 +81,59 @@ join_geospatial_4ML <- function(country, useCaseName, Crop, AOI, Planting_month_
     SolarRadiation_summaries <- readRDS(paste("/home/jovyan/agwise-datasourcing/dataops/datasourcing/Data/useCase_",country, "_",useCaseName, "/", Crop, "/result/SolarRadiation/SolarRadiation_summaries_trial_AgEra.RDS", sep=""))
     RelativeHumidity_summaries <- readRDS(paste("/home/jovyan/agwise-datasourcing/dataops/datasourcing/Data/useCase_",country, "_",useCaseName, "/", Crop, "/result/RelativeHumidity/RelativeHumidity_summaries_trial_AgEra.RDS", sep=""))
     
-    ## given some trials have 5 months growing period and some only 4, for some trials the fifth moght data is NA and ML will exclide this data
-    ## to avoid this the value of the 5th months is added to the 4th month and th fifth month columns are removed. 
-    Rainfall_summaries$Rain_month4 <- ifelse(!is.na(Rainfall_summaries$Rain_month5),
-                                             Rainfall_summaries$Rain_month4 + Rainfall_summaries$Rain_month5, 
-                                             Rainfall_summaries$Rain_month4 )
     
-    WindSpeed_summaries$WindSpeed_month4 <- ifelse(!is.na(WindSpeed_summaries$WindSpeed_month5), 
-                                                   WindSpeed_summaries$WindSpeed_month4 + WindSpeed_summaries$WindSpeed_month5,
-                                                   WindSpeed_summaries$WindSpeed_month4 )
+    ### drop NA columns
+    Rainfall_summaries <- Rainfall_summaries %>% select_if(~all(!is.na(.)))
+    WindSpeed_summaries <- WindSpeed_summaries %>% select_if(~all(!is.na(.)))
+    Tmax_summaries <- Tmax_summaries %>% select_if(~all(!is.na(.)))
+    Tmin_summaries <- Tmin_summaries %>% select_if(~all(!is.na(.)))
+    SolarRadiation_summaries <- SolarRadiation_summaries %>% select_if(~all(!is.na(.)))
+    RelativeHumidity_summaries <- RelativeHumidity_summaries %>% select_if(~all(!is.na(.)))
     
-    Tmax_summaries$Tmax_month4 <- ifelse(!is.na(Tmax_summaries$Tmax_month5), 
-                                         Tmax_summaries$Tmax_month4 + Tmax_summaries$Tmax_month5, Tmax_summaries$Tmax_month4 )
+    ### keep locations where we have field data
+    GPS_Data$location <- paste(GPS_Data$lon, GPS_Data$lat, sep="_")
+    Rainfall_summaries$location <- paste(Rainfall_summaries$longitude, Rainfall_summaries$latitude, sep="_")
+    Tmax_summaries$location <- paste(Tmax_summaries$longitude, Tmax_summaries$latitude, sep="_")
+    Tmin_summaries$location <- paste(Tmin_summaries$longitude, Tmin_summaries$latitude, sep="_")
+    RelativeHumidity_summaries$location <- paste(RelativeHumidity_summaries$longitude, RelativeHumidity_summaries$latitude, sep="_")
+    WindSpeed_summaries$location <- paste(WindSpeed_summaries$longitude, WindSpeed_summaries$latitude, sep="_")
+    SolarRadiation_summaries$location <- paste(SolarRadiation_summaries$longitude, SolarRadiation_summaries$latitude, sep="_")
+    Topography_PointData$location <- paste(Topography_PointData$longitude, Topography_PointData$latitude, sep="_")
+    Soil_PointData$location <- paste(Soil_PointData$longitude, Soil_PointData$latitude, sep="_")
     
-    Tmin_summaries$Tmin_month4 <- ifelse(!is.na(Tmin_summaries$Tmin_month5), 
-                                         Tmin_summaries$Tmin_month4 + Tmin_summaries$Tmin_month5, Tmin_summaries$Tmin_month4 )
-    
-    RelativeHumidity_summaries$RH_month4 <- ifelse(!is.na(RelativeHumidity_summaries$RH_month5), 
-                                                   RelativeHumidity_summaries$RH_month4 + RelativeHumidity_summaries$RH_month5, 
-                                                   RelativeHumidity_summaries$RH_month4 )
+    Rainfall_summaries <- droplevels(Rainfall_summaries[Rainfall_summaries$location  %in% GPS_Data$location, ])
+    Tmax_summaries <- droplevels(Tmax_summaries[Tmax_summaries$location  %in% GPS_Data$location, ])
+    Tmin_summaries <- droplevels(Tmin_summaries[Tmin_summaries$location  %in% GPS_Data$location, ])
+    RelativeHumidity_summaries <- droplevels(RelativeHumidity_summaries[RelativeHumidity_summaries$location  %in% GPS_Data$location, ])
+    WindSpeed_summaries <- droplevels(WindSpeed_summaries[WindSpeed_summaries$location  %in% GPS_Data$location, ])
+    SolarRadiation_summaries <- droplevels(SolarRadiation_summaries[SolarRadiation_summaries$location  %in% GPS_Data$location, ])
+    Topography_PointData <- droplevels(Topography_PointData[Topography_PointData$location  %in% GPS_Data$location, ])
+    Soil_PointData <- droplevels(Soil_PointData[Soil_PointData$location  %in% GPS_Data$location, ])
     
     
     ## merge data 
-    Rainfall_summaries <- subset(Rainfall_summaries, select=-c(longitude, latitude, plantingDate, harvestDate, NAME_1, NAME_2, Rain_month5))
-    Tmax_summaries <- subset(Tmax_summaries, select=-c(longitude, latitude, plantingDate, harvestDate,NAME_1, NAME_2, Tmax_month5))
-    Tmin_summaries <- subset(Tmin_summaries, select=-c(longitude, latitude, plantingDate, harvestDate, NAME_1, NAME_2, Tmin_month5))
-    RelativeHumidity_summaries <- subset(RelativeHumidity_summaries, select=-c(longitude, latitude, plantingDate, harvestDate,NAME_1, NAME_2, RH_month5))
-    WindSpeed_summaries <- subset(WindSpeed_summaries, select=-c(longitude, latitude, plantingDate, harvestDate,NAME_1, NAME_2, WindSpeed_month5))
-    SolarRadiation_summaries <- subset(SolarRadiation_summaries, select=-c(longitude, latitude, plantingDate, harvestDate, solarRad_month5))
-    Topography_PointData <- subset(Topography_PointData, select=-c(longitude, latitude))
-    Soil_PointData <- subset(Soil_PointData, select=-c(longitude, latitude))
+    Rainfall_summaries <- subset(Rainfall_summaries, select=-c(location, longitude, latitude, plantingDate, harvestDate, NAME_1, NAME_2))
+    Tmax_summaries <- subset(Tmax_summaries, select=-c(location, longitude, latitude, plantingDate, harvestDate,NAME_1, NAME_2))
+    Tmin_summaries <- subset(Tmin_summaries, select=-c(location, longitude, latitude, plantingDate, harvestDate, NAME_1, NAME_2))
+    RelativeHumidity_summaries <- subset(RelativeHumidity_summaries, select=-c(location, longitude, latitude, plantingDate, harvestDate,NAME_1, NAME_2))
+    WindSpeed_summaries <- subset(WindSpeed_summaries, select=-c(location, longitude, latitude, plantingDate, harvestDate,NAME_1, NAME_2))
+    SolarRadiation_summaries <- subset(SolarRadiation_summaries, select=-c(location, longitude, latitude, plantingDate, harvestDate))
+    Topography_PointData$TLID <- Topography_PointData$ID
+    Topography_PointData <- subset(Topography_PointData, select=-c(location, longitude, latitude, ID))
+    Soil_PointData$TLID <- Soil_PointData$ID
+    Soil_PointData <- subset(Soil_PointData, select=-c(location, longitude, latitude, ID))
     
-   
+ 
     df_list1 <- list(GPS_Data, Rainfall_summaries, Tmax_summaries, Tmin_summaries, RelativeHumidity_summaries, SolarRadiation_summaries)
     merged_df1 <- Reduce(function(x, y) merge(x, y, by = ID), df_list1)
     head(merged_df1)
     
-    df_list2 <- list(merged_df1, Topography_PointData, Soil_PointData)
-    merged_df2 <- Reduce(function(x, y) merge(x, y, by.x = ID , by.y = "ID"), df_list2)
- 
-   
-  }else{
+    merged_df2 <- Topography_PointData %>% 
+      left_join(Soil_PointData) %>%
+      left_join(GPS_Data) %>%
+      left_join(merged_df1)
+    
+   }else{
     Planting_month_date <- gsub("-", "_", Planting_month_date)
     
     ## geo-spatial point data with no time dimension
@@ -161,7 +173,7 @@ join_geospatial_4ML <- function(country, useCaseName, Crop, AOI, Planting_month_
    
   }
   
-  merged_df2 <- merged_df2[complete.cases(merged_df2), ]
+  # merged_df2 <- merged_df2[complete.cases(merged_df2), ]
   Planting_month_date <- gsub("-", "_", Planting_month_date)
   
   fname <- ifelse(AOI == TRUE, paste("geoSpatial_4ML_AOI_", Planting_month_date, ".RDS", sep=""), "geoSpatial_4ML_trial.RDS")
@@ -174,6 +186,132 @@ join_geospatial_4ML <- function(country, useCaseName, Crop, AOI, Planting_month_
   
   
 }
+
+
+
+
+#' Title read the training (trial) and prediction(target area) data, add AEZ on both and aggregate the prediction data across years.
+#' the aggregation across years at this point has no purpose, but later when selected years matching the season forecast is implemented 
+#' it will be used to aggregte data across those selected years. This is yet to be tested and revised.   
+#'
+#' @param country 
+#' @param useCaseName 
+#' @param Crop 
+#' @param weather if true it will merge whether data otherwise it returns only soil and DEM variables 
+#' @param AOI area of interest or area for which we are developing the recommendation for
+#' @param Planting_month_date the rest data weather data is to be defined by the planting and months and date
+#'
+#' @return
+#'
+#' @examples ML_dataPrepartion(country = "Rwanda", useCaseName = "RAB", Crop = "Potato", Planting_month_date = "08-08")
+ML_dataPrepartion <- function (country, useCaseName, Crop, weather = FALSE, AOI = FALSE, Planting_month_date = NULL){
+  
+  ###############################
+  # 1. define path for input and output
+  ###############################
+  
+  pathIn <- paste("~/agwise-responsefunctions/dataops/responsefunctions/Data/useCase_", country, "_", useCaseName, "/", Crop, "/raw/data_4ML/", sep="")
+  
+  pathOut1 <- paste("~/agwise-responsefunctions/dataops/responsefunctions/Data/useCase_", country, "_", useCaseName, "/", Crop, "/raw/", sep="")
+
+  
+  if (!dir.exists(pathOut1)){
+    dir.create(file.path(pathOut1), recursive = TRUE)
+  }
+  
+  
+  ###############################
+  # 2. read data
+  ###############################
+  
+  
+  if(AOI == TRUE){
+    Planting_month_date <- gsub("-", "_", Planting_month_date)
+    ML_Data <- readRDS(paste(pathIn, "geoSpatial_4ML_AOI_", Planting_month_date, ".RDS", sep=""))
+  }else{
+    ML_Data <- readRDS(paste(pathIn, "geoSpatial_4ML_trial.RDS", sep=""))
+  }
+  
+  
+  fixedVars <- c("lon", "lat", "NAME_1", "NAME_2", "altitude", "slope", "TPI", "TRI",
+                 "c_tot_top", "c_tot_bottom", "ca_top", "ca_bottom", "clay_tot_psa_top", "clay_tot_psa_bottom", 
+                 "db_od_top", "db_od_bottom", "ecec_f_top", "ecec_f_bottom", "k_top", "k_bottom", "mg_top", "mg_bottom", 
+                 "n_tot_ncs_top", "n_tot_ncs_bottom", "oc_top", "oc_bottom", "p_top", "p_bottom", "ph_h2o_top", "ph_h2o_bottom",
+                 "s_top", "s_bottom", "sand_tot_psa_top", "sand_tot_psa_bottom", "silt_tot_psa_top", "silt_tot_psa_bottom", "SOM_top",
+                 "SOM_bottom", "PWP_top", "PWP_bottom", "FC_top", "FC_bottom", "SWS_top", "SWS_bottom", "K_0_30", "N_0_30", "P_0_30", 
+                 "Ptot_0_30", "texture_class_top", "texture_class_bottom")
+  
+  weatherVars <- c("longitude", "latitude", "plantingYear" ,"totalRF", "nrRainyDays", "Rain_month1", "Rain_month2", "Rain_month3", "Rain_month4", 
+                   "Tmax_mean", "Tmax_month1", "Tmax_month2", "Tmax_month3", "Tmax_month4", 
+                   "Tmin_mean", "Tmin_month1", "Tmin_month2", "Tmin_month3", "Tmin_month4")
+  
+  
+  ###############################
+  # 3. aggregate weather data across years 
+  ###############################
+  if(AOI ==TRUE){
+    
+    ML_Data_fixVars <- unique(ML_Data[, fixedVars])
+    ML_Data_weatherVars <- ML_Data[, weatherVars]
+    ## the aggregation will be done only for selected years based on 
+    ## the season forecast: dry, wet or average years
+    ML_Data_weatherVarsS <- suppressWarnings(as.data.frame(ML_Data_weatherVars %>% 
+                                                             group_by(longitude, latitude) %>%
+                                                             summarise_all(median) %>%
+                                                             select(-plantingYear)))
+    ML_Data <- unique(merge(ML_Data_fixVars, ML_Data_weatherVarsS, by=c("longitude", "latitude")))
+  }
+  
+  if(AOI == FALSE){
+    ML_Data <- ML_Data %>%
+      mutate(longitude = as.numeric(lon),
+             latitude = as.numeric(lat))
+  } 
+  
+  ###############################
+  # 4. the AOI data should be filtered for the desired AEZ in RAB 
+  ###############################
+  AEZ <- readOGR(dsn="~/agwise-datasourcing/dataops/datasourcing/Data/useCase_Rwanda_RAB/Potato/Landing/AEZ",  layer="AEZ_DEM_Dissolve")
+  RW_aez <- spTransform(AEZ, CRS( "+proj=longlat +ellps=WGS84 +datum=WGS84"))
+  RAW_AEZ_AOI <- suppressWarnings(raster::extract(RW_aez, ML_Data[, c("longitude", "latitude")]))
+  ML_Data <- cbind(RAW_AEZ_AOI, ML_Data)
+  ML_Data <- ML_Data %>%
+    dplyr::select(-c(id.y, AEZs_no)) %>%
+    mutate(AEZ = as.factor(Names_AEZs))
+  
+  fname <- ifelse(AOI == TRUE, paste("geoSpatial_Vmore_AOI_", Planting_month_date, ".RDS", sep=""), "modelReady_trial.RDS")
+  
+  saveRDS(ML_Data, paste(pathOut1, fname, sep=""))
+  
+  
+  return(ML_Data)
+  
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # 3. Join Geospatial for ML based on raster data ---------------------------
 ###########################################################################

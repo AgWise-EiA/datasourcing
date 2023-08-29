@@ -23,7 +23,7 @@ invisible(lapply(packages_required, library, character.only = TRUE))
 #' @return raster files cropped from global data and the result will be written out in useCaseName/Crop/raw/Topography
 #'
 #' @examples crop_geoSpatial_Topography(country = "Rwanda", useCaseName = "RAB", Crop = "Potato", overwrite = TRUE)
-
+# TODO change the name to get_Topography_Data
 crop_geoSpatial_Topography <- function(country, useCaseName, Crop, overwrite){
   
   ## create a directory to store the cropped data:  
@@ -113,7 +113,9 @@ derive_topography_data <- function(country, useCaseName, Crop, overwrite=FALSE){
 extract_topography_pointdata <- function(country, useCaseName, Crop, AOI=FALSE, ID=NULL){
   
   if(AOI == TRUE){
-    GPSdata <- readRDS(paste("~/agwise-datasourcing/dataops/datasourcing/Data/useCase_", country, "_",useCaseName, "/", Crop, "/raw/AOI_GPS.RDS", sep=""))
+    GPSdata <- readRDS(paste("~/agwise-datacuration/dataops/datacuration/Data/useCase_", country, "_",useCaseName, "/", Crop, "/result/AOI_GPS.RDS", sep=""))
+    
+    # GPSdata <- readRDS(paste("~/agwise-datasourcing/dataops/datasourcing/Data/useCase_", country, "_",useCaseName, "/", Crop, "/raw/AOI_GPS.RDS", sep=""))
     GPSdata <- unique(GPSdata[, c("longitude", "latitude")])
     GPSdata <- GPSdata[complete.cases(GPSdata), ]
   }else{
@@ -143,10 +145,10 @@ extract_topography_pointdata <- function(country, useCaseName, Crop, AOI=FALSE, 
   topoData$NAME_2 <- dd2$NAME_2
   
   if(!is.null(ID)){
-    topoData <- topoData[, c("longitude", "latitude", "ID", "layer", "slope", "TPI", "TRI","NAME_1", "NAME_2")]
+    # topoData <- topoData[, c("longitude", "latitude", "ID", "layer", "slope", "TPI", "TRI","NAME_1", "NAME_2")]
     colnames(topoData) <- c("longitude", "latitude", "ID" ,"altitude", "slope", "TPI", "TRI", "NAME_1", "NAME_2")
   }else{
-    topoData <- topoData[, c("longitude", "latitude", "layer", "slope", "TPI", "TRI","NAME_1", "NAME_2")]
+    # topoData <- topoData[, c("longitude", "latitude", "layer", "slope", "TPI", "TRI","NAME_1", "NAME_2")]
     colnames(topoData) <- c("longitude", "latitude", "altitude", "slope", "TPI", "TRI", "NAME_1", "NAME_2")
   }
   

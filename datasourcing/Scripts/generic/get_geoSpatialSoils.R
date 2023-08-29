@@ -28,17 +28,23 @@ invisible(lapply(packages_required, library, character.only = TRUE))
 #' @param Crop the name of the crop to be used in creating file name to write out the result.
 #' @param dataSource is one of c("iSDA", "soilGrids")
 #' @param overwrite default is FALSE 
+#' @param profile is logical, if true soilGrids data from soil profile from the 6 layers is being processed. This is required for DSSAT and other crop models. 
 #'
 #' @return raster files cropped from global data and the result will be written out in useCaseName/Crop/raw/soil/iSDA
 #'
 #' @examples crop_geoSpatial_soil(country = "Rwanda", useCaseName = "RAB", Crop = "Potato", overwrite = TRUE)
 
-crop_geoSpatial_soil <- function(country, useCaseName, Crop, dataSource, overwrite){
+crop_geoSpatial_soil <- function(country, useCaseName, Crop, dataSource, overwrite, profile =FALSE){
   
  
   ## create a directory to store the cropped data:  Global_GeoData/Landing
 
-  pathOut <- paste("/home/jovyan/agwise-datasourcing/dataops/datasourcing/Data/useCase_", country, "_",useCaseName, "/", Crop, "/raw/Soil", sep="")
+  if(profile==TRUE){
+    pathOut <- paste("/home/jovyan/agwise-datasourcing/dataops/datasourcing/Data/useCase_", country, "_",useCaseName, "/", Crop, "/raw/Soil/profile", sep="")
+  }else{
+    pathOut <- paste("/home/jovyan/agwise-datasourcing/dataops/datasourcing/Data/useCase_", country, "_",useCaseName, "/", Crop, "/raw/Soil", sep="")
+  }
+ 
   if (!dir.exists(pathOut)){
     dir.create(file.path(pathOut), recursive = TRUE)
   }
@@ -49,8 +55,14 @@ crop_geoSpatial_soil <- function(country, useCaseName, Crop, dataSource, overwri
     readLayers_soil <- terra::rast(paste("/home/jovyan/agwise-datasourcing/dataops/datasourcing/Data/Global_GeoData/Landing/Soil/iSDA", listRaster_soil, sep="/"))
     
   }else{
-    listRaster_soil <-list.files(path="/home/jovyan/agwise-datasourcing/dataops/datasourcing/Data/Global_GeoData/Landing/Soil/soilGrids", pattern=".tif$")
-    readLayers_soil <- terra::rast(paste("/home/jovyan/agwise-datasourcing/dataops/datasourcing/Data/Global_GeoData/Landing/Soil/soilGrids", listRaster_soil, sep="/"))
+    if(profile == TRUE){
+      listRaster_soil <-list.files(path="/home/jovyan/agwise-datasourcing/dataops/datasourcing/Data/Global_GeoData/Landing/Soil/soilGrids/profile", pattern=".tif$")
+      readLayers_soil <- terra::rast(paste("/home/jovyan/agwise-datasourcing/dataops/datasourcing/Data/Global_GeoData/Landing/Soil/soilGrids/profile", listRaster_soil, sep="/"))
+    }else{
+      listRaster_soil <-list.files(path="/home/jovyan/agwise-datasourcing/dataops/datasourcing/Data/Global_GeoData/Landing/Soil/soilGrids", pattern=".tif$")
+      readLayers_soil <- terra::rast(paste("/home/jovyan/agwise-datasourcing/dataops/datasourcing/Data/Global_GeoData/Landing/Soil/soilGrids", listRaster_soil, sep="/"))
+    }
+ 
   }
   
   ## read the relevant shape file from gdam to be used to crop the global data
@@ -206,6 +218,107 @@ transform_soils_data <- function(country, useCaseName, Crop, resFactor=1, overwr
   
 }
 
+#################################################################################################################
+## functions to read from "useCaseName/Crop/raw" and do data processing/derived variables etc and write the result in "UseCase/Crop/transform" as a profile
+#################################################################################################################
+
+#' @description function to transform soil data and generate derived variables by soil depth
+#' @param country country name
+#' @param useCaseName use case name
+#' @param Crop the name of the crop to be used in creating file name to write out the result.
+#' @param resFactor is an aggregation factor to change the resolution of the layers, soil data in global are at 1km res
+#' @param overwrite default is FALSE 
+#' @param pathOut path to save the result: TODO When the data architect (DA) is implemented pathOut = "usecaseName/crop/transform/soil"
+#'
+#' @return raster files cropped from global data and the result will be written out in useCaseName/Crop/transform/Soil/soilGrids
+#'
+#' @examples soil_iSDA_transform(country = "Rwanda"; useCaseName = "RAB"; Crop = "Maize"; resFactor=1, overwrite = TRUE)
+
+
+transform_soils_data_profile <- function(country, useCaseName, Crop, resFactor=1, overwrite = FALSE){
+  
+  ## create a directory to store the transformed data: with DA this will be in "usecaseName/crop/transform"
+  
+  pathOut <- paste("/home/jovyan/agwise-datasourcing/dataops/datasourcing/Data/useCase_", country, "_",useCaseName, "/", Crop, "/transform/Soil/profile", sep="")
+  
+  
+  if (!dir.exists(pathOut)){
+    dir.create(file.path(pathOut), recursive = TRUE)
+  }
+  
+  pathIn <- paste("/home/jovyan/agwise-datasourcing/dataops/datasourcing/Data/useCase_", country, "_",useCaseName, "/", Crop, "/raw/Soil/profile", sep="")
+  
+ 
+  ## read, crop and save 
+  # listRaster_iSDA <-list.files(path=pathIn, pattern=".tif$") 
+  cropped4Country <- terra::rast(paste(pathIn, "/","soilGrids_geospatial_soils.tif", sep=""))
+  
+  depths <- c("0-5cm","5-15cm","15-30cm","30-60cm","60-100cm","100-200cm")  
+  ## get soil organic matter as a function of organic carbon
+  for(i in 1:length(depths)) {
+            cropped4Country[[paste0("SOM_",depths[i])]] <- (cropped4Country[[paste0("soc_",depths[i])]] * 2)/10
+  }
+
+
+  ## Aggregation iSDA at ~1km resolution
+  if(resFactor > 1){
+    transformedLayer <- aggregate(cropped4Country, fun=mean, fact=resFactor)
+    
+  }else{
+    transformedLayer <- cropped4Country
+  }
+  
+  
+  ##### permanent wilting point ####
+  for(i in 1:length(depths)) {
+    transformedLayer[[paste0("PWP_",depths[i])]] <- (-0.024 * transformedLayer[[paste0("sand_",depths[i])]]/100) + 0.487 *
+      transformedLayer[[paste0("clay_",depths[i])]]/100 + 0.006 * transformedLayer[[paste0("SOM_",depths[i])]] + 
+      0.005*(transformedLayer[[paste0("sand_",depths[i])]]/100 * transformedLayer[[paste0("SOM_",depths[i])]]) - 
+      0.013*(transformedLayer[[paste0("clay_",depths[i])]]/100 * transformedLayer[[paste0("SOM_",depths[i])]]) +
+      0.068*(transformedLayer[[paste0("sand_",depths[i])]]/100 * transformedLayer[[paste0("clay_",depths[i])]]/100 ) + 0.031
+    transformedLayer[[paste0("PWP_",depths[i])]] <- (transformedLayer[[paste0("PWP_",depths[i])]] + 
+                                                       (0.14 * transformedLayer[[paste0("PWP_",depths[i])]] - 0.02))
+  }
+  
+  
+  
+  ##### FC ######
+  for(i in 1:length(depths)) {
+    transformedLayer[[paste0("FC_",depths[i])]] <- -0.251 * transformedLayer[[paste0("sand_",depths[i])]]/100 + 0.195 * 
+      transformedLayer[[paste0("clay_",depths[i])]]/100 + 0.011 * transformedLayer[[paste0("SOM_",depths[i])]] + 
+      0.006*(transformedLayer[[paste0("sand_",depths[i])]]/100 * transformedLayer[[paste0("SOM_",depths[i])]]) - 
+      0.027*(transformedLayer[[paste0("clay_",depths[i])]]/100 * transformedLayer[[paste0("SOM_",depths[i])]]) + 
+      0.452*(transformedLayer[[paste0("sand_",depths[i])]]/100 * transformedLayer[[paste0("clay_",depths[i])]]/100) + 0.299
+    transformedLayer[[paste0("FC_",depths[i])]] <- (transformedLayer[[paste0("FC_",depths[i])]] + (1.283 * transformedLayer[[paste0("FC_",depths[i])]]^2 - 0.374 * transformedLayer[[paste0("FC_",depths[i])]] - 0.015))
+    
+  }
+  
+ 
+  ##### soil water at saturation ######
+  for(i in 1:length(depths)) {
+    transformedLayer[[paste0("SWS_",depths[i])]] <- 0.278*(transformedLayer[[paste0("sand_",depths[i])]]/100)+0.034*
+      (transformedLayer[[paste0("clay_",depths[i])]]/100)+0.022*transformedLayer[[paste0("SOM_",depths[i])]] -
+      0.018*(transformedLayer[[paste0("sand_",depths[i])]]/100*transformedLayer[[paste0("SOM_",depths[i])]])- 0.027*
+      (transformedLayer[[paste0("clay_",depths[i])]]/100*transformedLayer[[paste0("SOM_",depths[i])]])-
+      0.584 * (transformedLayer[[paste0("sand_",depths[i])]]/100*transformedLayer[[paste0("clay_",depths[i])]]/100)+0.078
+    transformedLayer[[paste0("SWS_",depths[i])]] <- (transformedLayer[[paste0("SWS_",depths[i])]] +(0.636*transformedLayer[[paste0("SWS_",depths[i])]]-0.107))
+    transformedLayer[[paste0("SWS_",depths[i])]] <- (transformedLayer[[paste0("FC_",depths[i])]]+transformedLayer[[paste0("SWS_",depths[i])]]-(0.097*transformedLayer[[paste0("sand_",depths[i])]]/100)+0.043)
+    
+  }
+  
+  ##### saturated conductivity ######
+  for(i in 1:length(depths)) {
+    b = (log(1500)-log(33))/(log(transformedLayer[[paste0("FC_",depths[i])]])-log(transformedLayer[[paste0("PWP_",depths[i])]]))
+    lambda <- 1/b
+    transformedLayer[[paste0("KS_",depths[i])]] <- 1930*((transformedLayer[[paste0("SWS_",depths[i])]]-transformedLayer[[paste0("FC_",depths[i])]])^(3-lambda))
+  }
+  
+  ### write out the result
+  terra::writeRaster(transformedLayer, paste0(pathOut ,"/soils_transformed.tif", sep=""), filetype="GTiff", overwrite = overwrite)
+  
+  return(transformedLayer)
+  
+}
 
 
 
@@ -222,14 +335,17 @@ transform_soils_data <- function(country, useCaseName, Crop, resFactor=1, overwr
 #' @param Crop the name of the crop to be used in creating file name to write out the result.
 #' @param AOI TRUE if the GPS are for prediction for the target area, FALSE otherwise, it is used to avoid overwriting the point data from the trial locations.
 #' @param ID if AOI  = FALSE ID should be given to identify every trial ID
+#' @param profile is logical, if true soilGrids data from soil profile from the 6 layers is being processed. This is required for DSSAT and other crop models. 
 #'
 #' @return
-#' @examples extact_pointdata(country = "Rwanda", useCaseName = "RAB", Crop = "Potato", 
+#' @examples extact_pointdata(country = "Rwanda"; useCaseName = "RAB"; Crop = "Maize"; ID = "TLID"
 #' GPSdata = read.csv("~/agwise/AgWise_Data/fieldData_analytics/UseCase_Rwanda_RAB/result/aggregated_field_data.csv"))
-extract_soil_pointdata <- function(country, useCaseName, Crop, AOI=FALSE, ID=NULL){
+extract_soil_pointdata <- function(country, useCaseName, Crop, AOI=FALSE, ID=NULL, profile = FALSE){
   
   if(AOI == TRUE){
-    GPSdata <- readRDS(paste("~/agwise-datasourcing/dataops/datasourcing/Data/useCase_", country, "_",useCaseName, "/", Crop, "/raw/AOI_GPS.RDS", sep=""))
+    GPSdata <- readRDS(paste("~/agwise-datacuration/dataops/datacuration/Data/useCase_", country, "_",useCaseName, "/", Crop, "/result/AOI_GPS.RDS", sep=""))
+    
+    # GPSdata <- readRDS(paste("~/agwise-datasourcing/dataops/datasourcing/Data/useCase_", country, "_",useCaseName, "/", Crop, "/raw/AOI_GPS.RDS", sep=""))
     GPSdata <- unique(GPSdata[, c("longitude", "latitude")])
     GPSdata <- GPSdata[complete.cases(GPSdata), ]
   }else{
@@ -244,7 +360,13 @@ extract_soil_pointdata <- function(country, useCaseName, Crop, AOI=FALSE, ID=NUL
   gpsPoints$y <- as.numeric(gpsPoints$latitude)
   gpsPoints <- gpsPoints[, c("x", "y")]
  
-  pathin <- paste("~/agwise-datasourcing/dataops/datasourcing/Data/useCase_",country, "_", useCaseName,"/", Crop,"/" ,"/transform/Soil", sep="")
+  if(profile == TRUE){
+    pathin <- paste("~/agwise-datasourcing/dataops/datasourcing/Data/useCase_",country, "_", useCaseName,"/", Crop,"/" ,"/transform/Soil/profile", sep="")
+  }else {
+    pathin <- paste("~/agwise-datasourcing/dataops/datasourcing/Data/useCase_",country, "_", useCaseName,"/", Crop,"/" ,"/transform/Soil", sep="")
+  }
+  
+
   
   listRaster <-list.files(path=pathin, pattern=".tif$")
   soilLayer <- terra::rast(paste(pathin, listRaster, sep="/"))
@@ -258,11 +380,18 @@ extract_soil_pointdata <- function(country, useCaseName, Crop, AOI=FALSE, ID=NUL
   soilsData$NAME_1 <- dd2$NAME_1
   soilsData$NAME_2 <- dd2$NAME_2
   
-  
-  pathOut1 <- paste("~/agwise-datasourcing/dataops/datasourcing/Data/useCase_", country, "_", useCaseName,"/", Crop, "/result/Soil/", sep="")
-  pathOut2 <- paste("~/agwise-datacuration/dataops/datacuration/Data/useCase_", country, "_", useCaseName,"/", Crop, "/raw/Soil", sep="")
-  pathOut3 <- paste("~/agwise-responsefunctions/dataops/responsefunctions/Data/useCase_", country, "_", useCaseName,"/", Crop, "/raw/Soil", sep="")
-  pathOut4 <- paste("~/agwise-potentialyield/dataops/potentialyield/Data/useCase_", country, "_", useCaseName,"/", Crop, "/raw/Soil", sep="")
+  if(profile == TRUE){
+    pathOut1 <- paste("~/agwise-datasourcing/dataops/datasourcing/Data/useCase_", country, "_", useCaseName,"/", Crop, "/result/Soil/profile/", sep="")
+    pathOut2 <- paste("~/agwise-datacuration/dataops/datacuration/Data/useCase_", country, "_", useCaseName,"/", Crop, "/raw/Soil/profile/", sep="")
+    pathOut3 <- paste("~/agwise-responsefunctions/dataops/responsefunctions/Data/useCase_", country, "_", useCaseName,"/", Crop, "/raw/Soil/profile", sep="")
+    pathOut4 <- paste("~/agwise-potentialyield/dataops/potentialyield/Data/useCase_", country, "_", useCaseName,"/", Crop, "/raw/Soil/profile", sep="")
+  }else{
+    pathOut1 <- paste("~/agwise-datasourcing/dataops/datasourcing/Data/useCase_", country, "_", useCaseName,"/", Crop, "/result/Soil/", sep="")
+    pathOut2 <- paste("~/agwise-datacuration/dataops/datacuration/Data/useCase_", country, "_", useCaseName,"/", Crop, "/raw/Soil", sep="")
+    pathOut3 <- paste("~/agwise-responsefunctions/dataops/responsefunctions/Data/useCase_", country, "_", useCaseName,"/", Crop, "/raw/Soil", sep="")
+    pathOut4 <- paste("~/agwise-potentialyield/dataops/potentialyield/Data/useCase_", country, "_", useCaseName,"/", Crop, "/raw/Soil", sep="")
+  }
+
   
   if (!dir.exists(pathOut1)){
     dir.create(file.path(pathOut1), recursive = TRUE)
@@ -282,7 +411,7 @@ extract_soil_pointdata <- function(country, useCaseName, Crop, AOI=FALSE, ID=NUL
   
   f_name <- ifelse(AOI == TRUE, "Soil_PointData_AOI.RDS", "Soil_PointData_trial.RDS")
   
-  soilsData <- droplevels(soilsData[complete.cases(soilsData), ])
+  # soilsData2 <- droplevels(soilsData[complete.cases(soilsData), ])
   
   saveRDS(soilsData, paste(pathOut1, f_name, sep="/"))
   saveRDS(soilsData, paste(pathOut2, f_name, sep="/"))

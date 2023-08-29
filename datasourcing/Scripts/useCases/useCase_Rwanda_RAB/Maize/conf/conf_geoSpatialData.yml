@@ -1,0 +1,35 @@
+apiVersion: argoproj.io
+kind: Workflow
+metadata:
+  generateName: geospatialdata
+  project_name : "AGWISE"
+  use_case: "RWANDA"
+  crop: "Maize"
+  hints:
+    ResourceRequeriments:
+      R: 4
+      OS: CGLABS
+      Credentials: CGLABS
+arguments_global:
+  country: "Rwanda"
+  useCase: "RAB"
+  crop: "Maize"
+  jobs: 10
+
+arguments_weatherSoilTrial:
+  AOI: FALSE
+  plantingMonthDate: NULL
+  haverstMonthDate: NULL
+  soilData: TRUE
+  weatherData: TRUE
+  soilProfile: FALSE
+
+arguments_weatherSoilAOI:
+  AOI: TRUE
+  soilProfile: FALSE
+  plantingMonthDate: "02-01"
+  haverstMonthDate: "05-30"
+  soilData: TRUE
+  weatherData: TRUE
+
+
