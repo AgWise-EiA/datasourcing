@@ -77,21 +77,22 @@ get_weather_pointData <- function(country, inputData,  AOI=FALSE, Planting_month
   ## 1. read all the raster files 
   if(varName == "Rainfall"){
     listRaster <-list.files(path="/home/jovyan/agwise-datasourcing/dataops/datasourcing/Data/Global_GeoData/Landing/Rainfall/chirps", pattern=".nc$", full.names = TRUE)
-    listRaster <- listRaster[20:42]
   }else if (varName == "temperatureMax"){
     listRaster <-list.files(path="/home/jovyan/agwise-datasourcing/dataops/datasourcing/Data/Global_GeoData/Landing/TemperatureMax/AgEra", pattern=".nc$", full.names = TRUE)
-    listRaster <- listRaster[22:44]
   }else if (varName == "temperatureMin"){
     listRaster <-list.files(path="/home/jovyan/agwise-datasourcing/dataops/datasourcing/Data/Global_GeoData/Landing/TemperatureMin/AgEra", pattern=".nc$", full.names = TRUE)
-    listRaster <- listRaster[22:44]
   }else if(varName == "relativeHumidity"){
     listRaster <-list.files(path="/home/jovyan/agwise-datasourcing/dataops/datasourcing/Data/Global_GeoData/Landing/RelativeHumidity/AgEra", pattern=".nc$", full.names = TRUE)
-    listRaster <- listRaster[22:44]
   }else if(varName == "solarRadiation"){
     listRaster <-list.files(path="/home/jovyan/agwise-datasourcing/dataops/datasourcing/Data/Global_GeoData/Landing/SolarRadiation/AgEra", pattern=".nc$", full.names = TRUE)
-    listRaster <- listRaster[22:44]
   }else if(varName == "windSpeed"){
     listRaster <-list.files(path="/home/jovyan/agwise-datasourcing/dataops/datasourcing/Data/Global_GeoData/Landing/WindSpeed/AgEra", pattern=".nc$", full.names = TRUE)
+  }
+  
+  
+  if(AOI == TRUE & varName == "Rainfall"){
+    listRaster <- listRaster[20:42]
+  }else if (AOI == TRUE){
     listRaster <- listRaster[22:44]
   }
   
@@ -119,6 +120,7 @@ get_weather_pointData <- function(country, inputData,  AOI=FALSE, Planting_month
       inputData$ID <- c(1:nrow(inputData)) 
     }
     inputData$plantingDate <- as.Date(inputData$plantingDate)
+    inputData$harvestDate <- as.Date(inputData$harvestDate)
     inputData$plantingDate <- inputData$plantingDate %m-% months(1)
     inputData <- inputData[complete.cases(inputData), ]
     names(inputData) <- c("longitude", "latitude", "startingDate", "endDate", "ID")
@@ -126,7 +128,7 @@ get_weather_pointData <- function(country, inputData,  AOI=FALSE, Planting_month
   }
   
   # ground$harvestDate <- as.Date(ground$harvestDate, "%Y-%m-%d")
-  countryShp <- geodata::gadm(country, level = 3, path='.')
+  countryShp <- geodata::gadm(country, level = 2, path='.')
   dd2 <- raster::extract(countryShp, ground[, c("longitude", "latitude")])[, c("NAME_1", "NAME_2")]
   ground$NAME_1 <- dd2$NAME_1
   ground$NAME_2 <- dd2$NAME_2
@@ -212,8 +214,11 @@ get_weather_pointData <- function(country, inputData,  AOI=FALSE, Planting_month
     
     
     # Get the Year
-    ground$yearPi <- format(as.POSIXlt(ground$startingDate), "%Y")
-    ground$yearHi <- format(as.POSIXlt(ground$endDate), "%Y")
+    ground$yearPi <- as.numeric(format(as.POSIXlt(ground$startingDate), "%Y"))
+    ground$yearHi <- as.numeric(format(as.POSIXlt(ground$endDate), "%Y"))
+    
+    ## drop data with planting dates before 1981, as there is no global layer available for years before 1981 pfr rain and 1979 for AgeEra files
+    ground <- droplevels(ground[ground$yearPi >= 1981 & ground$yearHi >= 1981, ])
     
     # Convert planting date and harvesting date in Julian Day
     ground$ pl_j <-as.POSIXlt(ground$startingDate)$yday
@@ -222,11 +227,13 @@ get_weather_pointData <- function(country, inputData,  AOI=FALSE, Planting_month
     # get the max number of days on the field to be used as column names. 
     start <- as.Date(min(ground$startingDate))
     maxDaysDiff <- abs(max(min(ground$pl_j) - max(ground$hv_j)))
-    end <- start + as.difftime(maxDaysDiff, units="days")
+    end <- maxDaysDiff +  as.Date(max(ground$endDate)) # start + as.difftime(maxDaysDiff, units="days")
     ddates <- seq(from=start, to=end, by=1)
     
+   
+    
 
-    # create list of all possible column names to be able to rbind data from different sites with different planting and harvest dates ranges
+    # create list of all possible column names to be able to row bind data from different sites with different planting and harvest dates ranges
     # rf_names <- c(paste0(varName, "_",  c(min(ground$pl_j):max(ground$hv_j))))
     rf_names <- c(paste0(varName, "_",  ddates))
     rf_names2 <-  as.data.frame(matrix(nrow=length(rf_names), ncol=1))
@@ -239,8 +246,8 @@ get_weather_pointData <- function(country, inputData,  AOI=FALSE, Planting_month
     for(i in 1:nrow(ground)){
       print(i)
       groundi <- ground[i, c("longitude", "latitude", "startingDate", "endDate","ID", "NAME_1", "NAME_2","yearPi", "yearHi", "pl_j", "hv_j")]
-      yearPi <- groundi$yearPi
-      yearHi <- groundi$yearHi
+      yearPi <- as.numeric(groundi$yearPi)
+      yearHi <- as.numeric(groundi$yearHi)
       pl_j <- groundi$pl_j
       hv_j <- groundi$hv_j
 
@@ -295,7 +302,9 @@ get_weather_pointData <- function(country, inputData,  AOI=FALSE, Planting_month
       data_points <- rbind(data_points, raini2)
     }
   }
- 
+  
+  data_points <- data_points %>% 
+    select_if(~sum(!is.na(.)) > 0)
   
   return(data_points)
 }
@@ -316,11 +325,11 @@ get_weather_pointData <- function(country, inputData,  AOI=FALSE, Planting_month
 #' elevations variables attached for every GPS location 
 #' @examples: get_soil_DEM_pointData(country = "Rwanda", profile = FALSE, pathOut = getwd(),
 #' inputData = data.frame(lon=c(29.35667, 29.36788), lat=c(-1.534350, -1.538792)))
-get_soil_DEM_pointData <- function(country, inputData, profile =FALSE, pathOut){
+get_soil_DEM_pointData <- function(country, inputData, soilProfile = FALSE, pathOut){
   
  
   ## 1. read soil global data
-  if(profile == TRUE){
+  if(soilProfile == TRUE){
     listRaster_soil <-list.files(path="/home/jovyan/agwise-datasourcing/dataops/datasourcing/Data/Global_GeoData/Landing/Soil/soilGrids/profile", pattern=".tif$")
     readLayers_soil <- terra::rast(paste("/home/jovyan/agwise-datasourcing/dataops/datasourcing/Data/Global_GeoData/Landing/Soil/soilGrids/profile", listRaster_soil, sep="/"))
     shapefileHC <- st_read("~/agwise-datasourcing/dataops/datasourcing/Data/Global_GeoData/Landing/Soil/HC27/HC27 CLASSES.shp", quiet= T)%>%
@@ -336,138 +345,150 @@ get_soil_DEM_pointData <- function(country, inputData, profile =FALSE, pathOut){
   
  
   ## 2. read the shape file of the country and crop the global data
-  countryShp <- geodata::gadm(country, level = 3, path='.')
-  croppedLayer_soil <- terra::crop(readLayers_soil, countryShp)
-  
-  
- 
-  ## 3. apply pedo-transfer functions to get soil organic matter and soil hydraulics variables 
-  if (profile == TRUE){
-    
-    depths <- c("0-5cm","5-15cm","15-30cm","30-60cm","60-100cm","100-200cm")  
-    ## get soil organic matter as a function of organic carbon
-    for(i in 1:length(depths)) {
-      croppedLayer_soil[[paste0("SOM_",depths[i])]] <- (croppedLayer_soil[[paste0("soc_",depths[i])]] * 2)/10
-    }
-    
-    
-    ##### permanent wilting point ####
-    for(i in 1:length(depths)) {
-      croppedLayer_soil[[paste0("PWP_",depths[i])]] <- (-0.024 * croppedLayer_soil[[paste0("sand_",depths[i])]]/100) + 0.487 *
-        croppedLayer_soil[[paste0("clay_",depths[i])]]/100 + 0.006 * croppedLayer_soil[[paste0("SOM_",depths[i])]] + 
-        0.005*(croppedLayer_soil[[paste0("sand_",depths[i])]]/100 * croppedLayer_soil[[paste0("SOM_",depths[i])]]) - 
-        0.013*(croppedLayer_soil[[paste0("clay_",depths[i])]]/100 * croppedLayer_soil[[paste0("SOM_",depths[i])]]) +
-        0.068*(croppedLayer_soil[[paste0("sand_",depths[i])]]/100 * croppedLayer_soil[[paste0("clay_",depths[i])]]/100 ) + 0.031
-      croppedLayer_soil[[paste0("PWP_",depths[i])]] <- (croppedLayer_soil[[paste0("PWP_",depths[i])]] + 
-                                                         (0.14 * croppedLayer_soil[[paste0("PWP_",depths[i])]] - 0.02))
-    }
-    
-    ##### FC ######
-    for(i in 1:length(depths)) {
-      croppedLayer_soil[[paste0("FC_",depths[i])]] <- -0.251 * croppedLayer_soil[[paste0("sand_",depths[i])]]/100 + 0.195 * 
-        croppedLayer_soil[[paste0("clay_",depths[i])]]/100 + 0.011 * croppedLayer_soil[[paste0("SOM_",depths[i])]] + 
-        0.006*(croppedLayer_soil[[paste0("sand_",depths[i])]]/100 * croppedLayer_soil[[paste0("SOM_",depths[i])]]) - 
-        0.027*(croppedLayer_soil[[paste0("clay_",depths[i])]]/100 * croppedLayer_soil[[paste0("SOM_",depths[i])]]) + 
-        0.452*(croppedLayer_soil[[paste0("sand_",depths[i])]]/100 * croppedLayer_soil[[paste0("clay_",depths[i])]]/100) + 0.299
-      croppedLayer_soil[[paste0("FC_",depths[i])]] <- (croppedLayer_soil[[paste0("FC_",depths[i])]] + (1.283 * croppedLayer_soil[[paste0("FC_",depths[i])]]^2 - 0.374 * croppedLayer_soil[[paste0("FC_",depths[i])]] - 0.015))
-      
-    }
-    
-    
-    ##### soil water at saturation ######
-    for(i in 1:length(depths)) {
-      croppedLayer_soil[[paste0("SWS_",depths[i])]] <- 0.278*(croppedLayer_soil[[paste0("sand_",depths[i])]]/100)+0.034*
-        (croppedLayer_soil[[paste0("clay_",depths[i])]]/100)+0.022*croppedLayer_soil[[paste0("SOM_",depths[i])]] -
-        0.018*(croppedLayer_soil[[paste0("sand_",depths[i])]]/100*croppedLayer_soil[[paste0("SOM_",depths[i])]])- 0.027*
-        (croppedLayer_soil[[paste0("clay_",depths[i])]]/100*croppedLayer_soil[[paste0("SOM_",depths[i])]])-
-        0.584 * (croppedLayer_soil[[paste0("sand_",depths[i])]]/100*croppedLayer_soil[[paste0("clay_",depths[i])]]/100)+0.078
-      croppedLayer_soil[[paste0("SWS_",depths[i])]] <- (croppedLayer_soil[[paste0("SWS_",depths[i])]] +(0.636*croppedLayer_soil[[paste0("SWS_",depths[i])]]-0.107))
-      croppedLayer_soil[[paste0("SWS_",depths[i])]] <- (croppedLayer_soil[[paste0("FC_",depths[i])]]+croppedLayer_soil[[paste0("SWS_",depths[i])]]-(0.097*croppedLayer_soil[[paste0("sand_",depths[i])]]/100)+0.043)
-      
-    }
-    
-    ##### saturated conductivity ######
-    for(i in 1:length(depths)) {
-      b = (log(1500)-log(33))/(log(croppedLayer_soil[[paste0("FC_",depths[i])]])-log(croppedLayer_soil[[paste0("PWP_",depths[i])]]))
-      lambda <- 1/b
-      croppedLayer_soil[[paste0("KS_",depths[i])]] <- 1930*((croppedLayer_soil[[paste0("SWS_",depths[i])]]-croppedLayer_soil[[paste0("FC_",depths[i])]])^(3-lambda))
-    }
-     
-    soilData <- croppedLayer_soil
-    
-  }else{
-   
-    depths <- c("0-20cm","20-50cm")  
-    
-    ## get soil organic matter as a function of organic carbon
-    for(i in 1:length(depths)) {
-      croppedLayer_soil[[paste0("SOM_",depths[i])]] <- (croppedLayer_soil[[paste0("oc_",depths[i])]] * 2)/10
-    }
+  countryShp <- geodata::gadm(country, level = 2, path='.')
 
-    ##### permanent wilting point ####
-    for(i in 1:length(depths)) {
-      croppedLayer_soil[[paste0("PWP_",depths[i])]] <- (-0.024 * croppedLayer_soil[[paste0("sand.tot.psa_",depths[i])]]/100) + 0.487 *
-        croppedLayer_soil[[paste0("clay.tot.psa_",depths[i])]]/100 + 0.006 * croppedLayer_soil[[paste0("SOM_",depths[i])]] + 
-        0.005*(croppedLayer_soil[[paste0("sand.tot.psa_",depths[i])]]/100 * croppedLayer_soil[[paste0("SOM_",depths[i])]]) - 
-        0.013*(croppedLayer_soil[[paste0("clay.tot.psa_",depths[i])]]/100 * croppedLayer_soil[[paste0("SOM_",depths[i])]]) +
-        0.068*(croppedLayer_soil[[paste0("sand.tot.psa_",depths[i])]]/100 * croppedLayer_soil[[paste0("clay.tot.psa_",depths[i])]]/100 ) + 0.031
-      croppedLayer_soil[[paste0("PWP_",depths[i])]] <- (croppedLayer_soil[[paste0("PWP_",depths[i])]] + (0.14 * croppedLayer_soil[[paste0("PWP_",depths[i])]] - 0.02))
-    }
-    
-
-    
-   ##### FC ######
-    for(i in 1:length(depths)) {
-      croppedLayer_soil[[paste0("FC_",depths[i])]] <- -0.251 * croppedLayer_soil[[paste0("sand.tot.psa_",depths[i])]]/100 + 0.195 * 
-        croppedLayer_soil[[paste0("clay.tot.psa_",depths[i])]]/100 + 0.011 * croppedLayer_soil[[paste0("SOM_",depths[i])]] + 
-        0.006*(croppedLayer_soil[[paste0("sand.tot.psa_",depths[i])]]/100 * croppedLayer_soil[[paste0("SOM_",depths[i])]]) - 
-        0.027*(croppedLayer_soil[[paste0("clay.tot.psa_",depths[i])]]/100 * croppedLayer_soil[[paste0("SOM_",depths[i])]]) + 
-        0.452*(croppedLayer_soil[[paste0("sand.tot.psa_",depths[i])]]/100 * croppedLayer_soil[[paste0("clay.tot.psa_",depths[i])]]/100) + 0.299
-      croppedLayer_soil[[paste0("FC_",depths[i])]] <- (croppedLayer_soil[[paste0("FC_",depths[i])]] + (1.283 * croppedLayer_soil[[paste0("FC_",depths[i])]]^2 - 0.374 * croppedLayer_soil[[paste0("FC_",depths[i])]] - 0.015))
-      
-    }
-    
-    
-    ##### soil water at saturation ######
-    for(i in 1:length(depths)) {
-      croppedLayer_soil[[paste0("SWS_",depths[i])]] <- 0.278*(croppedLayer_soil[[paste0("sand.tot.psa_",depths[i])]]/100)+0.034*
-        (croppedLayer_soil[[paste0("clay.tot.psa_",depths[i])]]/100)+0.022*croppedLayer_soil[[paste0("SOM_",depths[i])]] -
-        0.018*(croppedLayer_soil[[paste0("sand.tot.psa_",depths[i])]]/100*croppedLayer_soil[[paste0("SOM_",depths[i])]])- 0.027*
-        (croppedLayer_soil[[paste0("clay.tot.psa_",depths[i])]]/100*croppedLayer_soil[[paste0("SOM_",depths[i])]])-
-        0.584 * (croppedLayer_soil[[paste0("sand.tot.psa_",depths[i])]]/100*croppedLayer_soil[[paste0("clay.tot.psa_",depths[i])]]/100)+0.078
-      croppedLayer_soil[[paste0("SWS_",depths[i])]] <- (croppedLayer_soil[[paste0("SWS_",depths[i])]] +(0.636*croppedLayer_soil[[paste0("SWS_",depths[i])]]-0.107))
-      croppedLayer_soil[[paste0("SWS_",depths[i])]] <- (croppedLayer_soil[[paste0("FC_",depths[i])]]+croppedLayer_soil[[paste0("SWS_",depths[i])]]-(0.097*croppedLayer_soil[[paste0("sand.tot.psa_",depths[i])]]/100)+0.043)
-      
-    }
-    
-    ##### saturated conductivity ######
-    for(i in 1:length(depths)) {
-      b = (log(1500)-log(33))/(log(croppedLayer_soil[[paste0("FC_",depths[i])]])-log(croppedLayer_soil[[paste0("PWP_",depths[i])]]))
-      lambda <- 1/b
-      croppedLayer_soil[[paste0("KS_",depths[i])]] <- 1930*((croppedLayer_soil[[paste0("SWS_",depths[i])]]-croppedLayer_soil[[paste0("FC_",depths[i])]])^(3-lambda))
-    }
-    
-    names(croppedLayer_soil) <- gsub("0-20cm", "top", names(croppedLayer_soil))
-    names(croppedLayer_soil) <- gsub("20-50cm", "bottom", names(croppedLayer_soil))
-    names(croppedLayer_soil) <- gsub("_0-200cm", "", names(croppedLayer_soil))
-    names(croppedLayer_soil) <- gsub("\\.", "_",  names(croppedLayer_soil)) 
-    croppedLayer_isric <- terra::crop(readLayers_soil_isric, countryShp)
-    names(croppedLayer_isric) <- gsub("0-30cm", "0_30", names(croppedLayer_isric))
-    
-    soilData <- c(croppedLayer_soil, croppedLayer_isric)
-  }
-  
-  
-  
-  ## 4. Extract point soil data 
   gpsPoints <- unique(inputData[, c("lon", "lat")])
   gpsPoints <- gpsPoints[complete.cases(gpsPoints), ]
   gpsPoints$x <- as.numeric(gpsPoints$lon)
   gpsPoints$y <- as.numeric(gpsPoints$lat)
   gpsPoints <- gpsPoints[, c("x", "y")]
+  areasCovered <- unique(c(raster::extract(countryShp, gpsPoints)$NAME_1))
+  areasCovered <- areasCovered[!is.na(areasCovered)]
+  print(areasCovered)
   
-
-  pointDataSoil <- as.data.frame(raster::extract(soilData, gpsPoints))
+  
+  
+  
+  for(aC in areasCovered){
+    print(aC)
+    countryShpA <- countryShp[countryShp$NAME_1 == aC]
+    croppedLayer_soil <- terra::crop(readLayers_soil, countryShpA)
+    ## 3. apply pedo-transfer functions to get soil organic matter and soil hydraulics variables 
+    if (soilProfile == TRUE){
+      
+      depths <- c("0-5cm","5-15cm","15-30cm","30-60cm","60-100cm","100-200cm")  
+      ## get soil organic matter as a function of organic carbon
+      for(i in 1:length(depths)) {
+        croppedLayer_soil[[paste0("SOM_",depths[i])]] <- (croppedLayer_soil[[paste0("soc_",depths[i])]] * 2)/10
+      }
+      
+      
+      ##### permanent wilting point ####
+      for(i in 1:length(depths)) {
+        croppedLayer_soil[[paste0("PWP_",depths[i])]] <- (-0.024 * croppedLayer_soil[[paste0("sand_",depths[i])]]/100) + 0.487 *
+          croppedLayer_soil[[paste0("clay_",depths[i])]]/100 + 0.006 * croppedLayer_soil[[paste0("SOM_",depths[i])]] + 
+          0.005*(croppedLayer_soil[[paste0("sand_",depths[i])]]/100 * croppedLayer_soil[[paste0("SOM_",depths[i])]]) - 
+          0.013*(croppedLayer_soil[[paste0("clay_",depths[i])]]/100 * croppedLayer_soil[[paste0("SOM_",depths[i])]]) +
+          0.068*(croppedLayer_soil[[paste0("sand_",depths[i])]]/100 * croppedLayer_soil[[paste0("clay_",depths[i])]]/100 ) + 0.031
+        croppedLayer_soil[[paste0("PWP_",depths[i])]] <- (croppedLayer_soil[[paste0("PWP_",depths[i])]] + 
+                                                            (0.14 * croppedLayer_soil[[paste0("PWP_",depths[i])]] - 0.02))
+      }
+      
+      ##### FC ######
+      for(i in 1:length(depths)) {
+        croppedLayer_soil[[paste0("FC_",depths[i])]] <- -0.251 * croppedLayer_soil[[paste0("sand_",depths[i])]]/100 + 0.195 * 
+          croppedLayer_soil[[paste0("clay_",depths[i])]]/100 + 0.011 * croppedLayer_soil[[paste0("SOM_",depths[i])]] + 
+          0.006*(croppedLayer_soil[[paste0("sand_",depths[i])]]/100 * croppedLayer_soil[[paste0("SOM_",depths[i])]]) - 
+          0.027*(croppedLayer_soil[[paste0("clay_",depths[i])]]/100 * croppedLayer_soil[[paste0("SOM_",depths[i])]]) + 
+          0.452*(croppedLayer_soil[[paste0("sand_",depths[i])]]/100 * croppedLayer_soil[[paste0("clay_",depths[i])]]/100) + 0.299
+        croppedLayer_soil[[paste0("FC_",depths[i])]] <- (croppedLayer_soil[[paste0("FC_",depths[i])]] + (1.283 * croppedLayer_soil[[paste0("FC_",depths[i])]]^2 - 0.374 * croppedLayer_soil[[paste0("FC_",depths[i])]] - 0.015))
+        
+      }
+      
+      
+      ##### soil water at saturation ######
+      for(i in 1:length(depths)) {
+        croppedLayer_soil[[paste0("SWS_",depths[i])]] <- 0.278*(croppedLayer_soil[[paste0("sand_",depths[i])]]/100)+0.034*
+          (croppedLayer_soil[[paste0("clay_",depths[i])]]/100)+0.022*croppedLayer_soil[[paste0("SOM_",depths[i])]] -
+          0.018*(croppedLayer_soil[[paste0("sand_",depths[i])]]/100*croppedLayer_soil[[paste0("SOM_",depths[i])]])- 0.027*
+          (croppedLayer_soil[[paste0("clay_",depths[i])]]/100*croppedLayer_soil[[paste0("SOM_",depths[i])]])-
+          0.584 * (croppedLayer_soil[[paste0("sand_",depths[i])]]/100*croppedLayer_soil[[paste0("clay_",depths[i])]]/100)+0.078
+        croppedLayer_soil[[paste0("SWS_",depths[i])]] <- (croppedLayer_soil[[paste0("SWS_",depths[i])]] +(0.636*croppedLayer_soil[[paste0("SWS_",depths[i])]]-0.107))
+        croppedLayer_soil[[paste0("SWS_",depths[i])]] <- (croppedLayer_soil[[paste0("FC_",depths[i])]]+croppedLayer_soil[[paste0("SWS_",depths[i])]]-(0.097*croppedLayer_soil[[paste0("sand_",depths[i])]]/100)+0.043)
+        
+      }
+      
+      ##### saturated conductivity ######
+      for(i in 1:length(depths)) {
+        b = (log(1500)-log(33))/(log(croppedLayer_soil[[paste0("FC_",depths[i])]])-log(croppedLayer_soil[[paste0("PWP_",depths[i])]]))
+        lambda <- 1/b
+        croppedLayer_soil[[paste0("KS_",depths[i])]] <- 1930*((croppedLayer_soil[[paste0("SWS_",depths[i])]]-croppedLayer_soil[[paste0("FC_",depths[i])]])^(3-lambda))
+      }
+      
+      soilData <- croppedLayer_soil
+      
+    }else{
+      
+      depths <- c("0-20cm","20-50cm")  
+      
+      ## get soil organic matter as a function of organic carbon
+      for(i in 1:length(depths)) {
+        croppedLayer_soil[[paste0("SOM_",depths[i])]] <- (croppedLayer_soil[[paste0("oc_",depths[i])]] * 2)/10
+      }
+      
+      ##### permanent wilting point ####
+      for(i in 1:length(depths)) {
+        croppedLayer_soil[[paste0("PWP_",depths[i])]] <- (-0.024 * croppedLayer_soil[[paste0("sand.tot.psa_",depths[i])]]/100) + 0.487 *
+          croppedLayer_soil[[paste0("clay.tot.psa_",depths[i])]]/100 + 0.006 * croppedLayer_soil[[paste0("SOM_",depths[i])]] + 
+          0.005*(croppedLayer_soil[[paste0("sand.tot.psa_",depths[i])]]/100 * croppedLayer_soil[[paste0("SOM_",depths[i])]]) - 
+          0.013*(croppedLayer_soil[[paste0("clay.tot.psa_",depths[i])]]/100 * croppedLayer_soil[[paste0("SOM_",depths[i])]]) +
+          0.068*(croppedLayer_soil[[paste0("sand.tot.psa_",depths[i])]]/100 * croppedLayer_soil[[paste0("clay.tot.psa_",depths[i])]]/100 ) + 0.031
+        croppedLayer_soil[[paste0("PWP_",depths[i])]] <- (croppedLayer_soil[[paste0("PWP_",depths[i])]] + (0.14 * croppedLayer_soil[[paste0("PWP_",depths[i])]] - 0.02))
+      }
+      
+      
+      
+      ##### FC ######
+      for(i in 1:length(depths)) {
+        croppedLayer_soil[[paste0("FC_",depths[i])]] <- -0.251 * croppedLayer_soil[[paste0("sand.tot.psa_",depths[i])]]/100 + 0.195 * 
+          croppedLayer_soil[[paste0("clay.tot.psa_",depths[i])]]/100 + 0.011 * croppedLayer_soil[[paste0("SOM_",depths[i])]] + 
+          0.006*(croppedLayer_soil[[paste0("sand.tot.psa_",depths[i])]]/100 * croppedLayer_soil[[paste0("SOM_",depths[i])]]) - 
+          0.027*(croppedLayer_soil[[paste0("clay.tot.psa_",depths[i])]]/100 * croppedLayer_soil[[paste0("SOM_",depths[i])]]) + 
+          0.452*(croppedLayer_soil[[paste0("sand.tot.psa_",depths[i])]]/100 * croppedLayer_soil[[paste0("clay.tot.psa_",depths[i])]]/100) + 0.299
+        croppedLayer_soil[[paste0("FC_",depths[i])]] <- (croppedLayer_soil[[paste0("FC_",depths[i])]] + (1.283 * croppedLayer_soil[[paste0("FC_",depths[i])]]^2 - 0.374 * croppedLayer_soil[[paste0("FC_",depths[i])]] - 0.015))
+        
+      }
+      
+      
+      ##### soil water at saturation ######
+      for(i in 1:length(depths)) {
+        croppedLayer_soil[[paste0("SWS_",depths[i])]] <- 0.278*(croppedLayer_soil[[paste0("sand.tot.psa_",depths[i])]]/100)+0.034*
+          (croppedLayer_soil[[paste0("clay.tot.psa_",depths[i])]]/100)+0.022*croppedLayer_soil[[paste0("SOM_",depths[i])]] -
+          0.018*(croppedLayer_soil[[paste0("sand.tot.psa_",depths[i])]]/100*croppedLayer_soil[[paste0("SOM_",depths[i])]])- 0.027*
+          (croppedLayer_soil[[paste0("clay.tot.psa_",depths[i])]]/100*croppedLayer_soil[[paste0("SOM_",depths[i])]])-
+          0.584 * (croppedLayer_soil[[paste0("sand.tot.psa_",depths[i])]]/100*croppedLayer_soil[[paste0("clay.tot.psa_",depths[i])]]/100)+0.078
+        croppedLayer_soil[[paste0("SWS_",depths[i])]] <- (croppedLayer_soil[[paste0("SWS_",depths[i])]] +(0.636*croppedLayer_soil[[paste0("SWS_",depths[i])]]-0.107))
+        croppedLayer_soil[[paste0("SWS_",depths[i])]] <- (croppedLayer_soil[[paste0("FC_",depths[i])]]+croppedLayer_soil[[paste0("SWS_",depths[i])]]-(0.097*croppedLayer_soil[[paste0("sand.tot.psa_",depths[i])]]/100)+0.043)
+        
+      }
+      
+      ##### saturated conductivity ######
+      for(i in 1:length(depths)) {
+        b = (log(1500)-log(33))/(log(croppedLayer_soil[[paste0("FC_",depths[i])]])-log(croppedLayer_soil[[paste0("PWP_",depths[i])]]))
+        lambda <- 1/b
+        croppedLayer_soil[[paste0("KS_",depths[i])]] <- 1930*((croppedLayer_soil[[paste0("SWS_",depths[i])]]-croppedLayer_soil[[paste0("FC_",depths[i])]])^(3-lambda))
+      }
+      
+      names(croppedLayer_soil) <- gsub("0-20cm", "top", names(croppedLayer_soil))
+      names(croppedLayer_soil) <- gsub("20-50cm", "bottom", names(croppedLayer_soil))
+      names(croppedLayer_soil) <- gsub("_0-200cm", "", names(croppedLayer_soil))
+      names(croppedLayer_soil) <- gsub("\\.", "_",  names(croppedLayer_soil)) 
+      croppedLayer_isric <- terra::crop(readLayers_soil_isric, countryShp)
+      names(croppedLayer_isric) <- gsub("0-30cm", "0_30", names(croppedLayer_isric))
+      
+      soilData <- c(croppedLayer_soil, croppedLayer_isric)
+    }
+    if(aC == areasCovered[1]){
+      soilData_allregion <- soilData
+    }else{
+      soilData_allregion <- merge(soilData_allregion, soilData)
+    }
+    
+  }
+  
+  
+  ## 4. Extract point soil data 
+  pointDataSoil <- as.data.frame(raster::extract(soilData_allregion, gpsPoints))
   pointDataSoil <- subset(pointDataSoil, select=-c(ID))
   names(gpsPoints) <- c("lon", "lat")
   pointDataSoil <- cbind(gpsPoints, pointDataSoil)
@@ -479,13 +500,40 @@ get_soil_DEM_pointData <- function(country, inputData, profile =FALSE, pathOut){
   
   
   
-  ## 5. Extract DEM data 
-  countryExt <- terra::ext(countryShp)
-  listRaster_dem1 <-geodata::elevation_3s(lon=countryExt[1], lat=countryExt[3], path=pathOut) #xmin - ymin
-  listRaster_dem2 <-geodata::elevation_3s(lon=countryExt[1], lat=countryExt[4], path=pathOut) #xmin - ymax
-  listRaster_dem3 <-geodata::elevation_3s(lon=countryExt[2], lat=countryExt[3], path=pathOut) #xmax - ymin
-  listRaster_dem4 <-geodata::elevation_3s(lon=countryExt[2], lat=countryExt[4], path=pathOut) #xmax - ymax
-  listRaster_dem <- terra::mosaic(listRaster_dem1, listRaster_dem2, listRaster_dem3, listRaster_dem4, fun='mean')
+  ## 5. Extract DEM data: at lon and lat at steps of 5 degree
+  countryExt <- terra::ext(countryShp[countryShp$NAME_1 %in% areasCovered])
+  
+  lons <- seq(round_any(countryExt[1], 5)-5, round_any(countryExt[2]-5, 5), 5)
+  lats <- seq(round_any(countryExt[3], 5), round_any(countryExt[4], 5), 5)
+  griddem <- expand_grid(lons, lats)
+
+ 
+ dems <- c()
+ listRaster_demx <- NULL
+ for(g in 1:nrow(griddem)){
+   listRaster_demx <- tryCatch(geodata::elevation_3s(lon=griddem$lons[g], lat=griddem$lats[g], path=pathOut),error=function(e){})
+   dems <- c(dems, listRaster_demx)
+ }
+ 
+ ## if mosaic works with list as dems is here, the next step is not necessary
+ if(length(dems) < 12){
+   for (k in c((length(dems)+1):12)){
+     dems[[k]] <- dems[[1]] 
+   }
+   
+ }
+
+ listRaster_dem <- terra::mosaic(dems[[1]], dems[[2]],dems[[3]],dems[[4]],
+               dems[[5]], dems[[6]], dems[[7]],dems[[8]],
+               dems[[9]], dems[[10]], dems[[11]],dems[[12]],fun='mean')
+
+ 
+ ## if the extent is not fully within a distince of 5 degrees this does not work
+  # listRaster_dem1 <-geodata::elevation_3s(lon=countryExt[1], lat=countryExt[3], path=pathOut) #xmin - ymin
+  # listRaster_dem2 <-geodata::elevation_3s(lon=countryExt[1], lat=countryExt[4], path=pathOut) #xmin - ymax
+  # listRaster_dem3 <-geodata::elevation_3s(lon=countryExt[2], lat=countryExt[3], path=pathOut) #xmax - ymin
+  # listRaster_dem4 <-geodata::elevation_3s(lon=countryExt[2], lat=countryExt[4], path=pathOut) #xmax - ymax
+  # listRaster_dem <- terra::mosaic(listRaster_dem1, listRaster_dem2, listRaster_dem3, listRaster_dem4, fun='mean')
   
   dem <- terra::crop(listRaster_dem, countryShp)
   slope <- terra::terrain(dem, v = 'slope', unit = 'degrees')
@@ -493,6 +541,7 @@ get_soil_DEM_pointData <- function(country, inputData, profile =FALSE, pathOut){
   tri <- terra::terrain(dem, v = 'TRI')
   
   topoLayer <- terra::rast(list(dem, slope, tpi, tri))
+  names(gpsPoints) <- c("x", "y")
   datatopo <- terra::extract(topoLayer, gpsPoints, method='simple', cells=FALSE)
   datatopo <- subset(datatopo, select=-c(ID))
   topoData <- cbind(gpsPoints, datatopo)
@@ -501,7 +550,7 @@ get_soil_DEM_pointData <- function(country, inputData, profile =FALSE, pathOut){
   
   
   ## 6. Extract harvest choice soil class and drainage rate (just for profile =TRUE)
-  if(profile == TRUE){
+  if(soilProfile == TRUE){
     coordinates_df <- data.frame(lat=pointDataSoil$lat, lon=pointDataSoil$lon)
     coordinates_sf <- st_as_sf(coordinates_df, coords = c("lon", "lat"), crs = 4326)
     intersecting_polygons <-st_join(coordinates_sf, shapefileHC)
@@ -565,8 +614,8 @@ extract_geoSpatialPointData <- function(country, useCaseName, Crop,
   
     pathOut1 <- paste("~/agwise-datasourcing/dataops/datasourcing/Data/useCase_", country, "_", useCaseName,"/", Crop, "/result/geo_4cropModel/", sep="")
     pathOut2 <- paste("~/agwise-potentialyield/dataops/potentialyield/Data/useCase_", country, "_", useCaseName,"/", Crop, "/raw/geo_4cropModel", sep="")
+    pathOut3 <- paste("/home/jovyan/agwise-responsefunctions/dataops/responsefunctions/Data/useCase_", country, "_",useCaseName, "/", Crop, "/raw/geo_4ML", sep="")
     
-  
   if (!dir.exists(pathOut1)){
     dir.create(file.path(pathOut1), recursive = TRUE)
   }
@@ -575,7 +624,10 @@ extract_geoSpatialPointData <- function(country, useCaseName, Crop,
     dir.create(file.path(pathOut2), recursive = TRUE)
   }
   
-
+  if (!dir.exists(pathOut3)){
+    dir.create(file.path(pathOut3), recursive = TRUE)
+  }
+    
   
   
   if(weatherData == TRUE){
@@ -597,7 +649,8 @@ extract_geoSpatialPointData <- function(country, useCaseName, Crop,
     
   
   if(soilData == TRUE & season == 1){
-    sData <- get_soil_DEM_pointData(country = country, profile = soilProfile, 
+  
+    sData <- get_soil_DEM_pointData(country = country, soilProfile = soilProfile, 
                                     pathOut = pathOut2, inputData = inputData)
     
     if(AOI == TRUE){
@@ -616,8 +669,14 @@ extract_geoSpatialPointData <- function(country, useCaseName, Crop,
     
     saveRDS(sData, paste(pathOut1, s_name, sep="/"))
     saveRDS(sData, paste(pathOut2, s_name, sep="/"))
+    saveRDS(sData, paste(pathOut3, s_name, sep="/"))
     
   }
+    
+    
+
+    
+    
   
   if(weatherData == TRUE & soilData == TRUE & season == 1){
     wData[[7]] <- sData
@@ -859,17 +918,22 @@ get_WeatherSummarydata <- function(country, useCaseName, Crop, AOI = FALSE,
 
   # Input layers
   listRaster_RF <-list.files(path="/home/jovyan/agwise-datasourcing/dataops/datasourcing/Data/Global_GeoData/Landing/Rainfall/chirps", pattern=".nc$", full.names = TRUE)
-  listRaster_RF <- listRaster_RF[20:42]
   listRaster_Tmax <-list.files(path="/home/jovyan/agwise-datasourcing/dataops/datasourcing/Data/Global_GeoData/Landing/TemperatureMax/AgEra", pattern=".nc$", full.names = TRUE)
-  listRaster_Tmax <- listRaster_Tmax[22:44]
   listRaster_Tmin <-list.files(path="/home/jovyan/agwise-datasourcing/dataops/datasourcing/Data/Global_GeoData/Landing/TemperatureMin/AgEra", pattern=".nc$", full.names = TRUE)
-  listRaster_Tmin <- listRaster_Tmin[22:44]
   listRaster_RH <-list.files(path="/home/jovyan/agwise-datasourcing/dataops/datasourcing/Data/Global_GeoData/Landing/RelativeHumidity/AgEra", pattern=".nc$", full.names = TRUE)
-  listRaster_RH <- listRaster_RH[22:44]
   listRaster_SR <-list.files(path="/home/jovyan/agwise-datasourcing/dataops/datasourcing/Data/Global_GeoData/Landing/SolarRadiation/AgEra", pattern=".nc$", full.names = TRUE)
-  listRaster_SR <- listRaster_SR[22:44]
   listRaster_WS <-list.files(path="/home/jovyan/agwise-datasourcing/dataops/datasourcing/Data/Global_GeoData/Landing/WindSpeed/AgEra", pattern=".nc$", full.names = TRUE)
-  listRaster_WS <- listRaster_WS[22:44]
+ 
+  
+  if(AOI == TRUE){
+    listRaster_RF <- listRaster_RF[20:42]
+    listRaster_Tmax <- listRaster_Tmax[22:44]
+    listRaster_Tmin <- listRaster_Tmin[22:44]
+    listRaster_RH <- listRaster_RH[22:44]
+    listRaster_SR <- listRaster_SR[22:44]
+    listRaster_WS <- listRaster_WS[22:44]
+  }
+  
   
   
   # Creation of the output dir
@@ -925,6 +989,11 @@ get_WeatherSummarydata <- function(country, useCaseName, Crop, AOI = FALSE,
   dd2 <- raster::extract(countryShp, ground[, c("longitude", "latitude")])[, c("NAME_1", "NAME_2")]
   ground$NAME_1 <- dd2$NAME_1
   ground$NAME_2 <- dd2$NAME_2
+  
+  
+  
+  ground$pyear <- as.numeric(format(as.POSIXlt(ground$plantingDate), "%Y"))
+  ground <- ground[ground$pyear >= 1981, ]
   
   
   # Compute the seasonal rainfall parameters
