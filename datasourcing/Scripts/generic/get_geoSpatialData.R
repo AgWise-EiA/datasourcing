@@ -102,27 +102,21 @@ get_weather_pointData <- function(country, inputData,  AOI=FALSE, Planting_month
   if(AOI == TRUE){
     countryCoord <- unique(inputData[, c("lon", "lat")])
     countryCoord <- countryCoord[complete.cases(countryCoord), ]
-    
-    # Planting_month <- as.numeric(format(Planting_month_date,"%m"))
-    # harvest_month <- as.numeric(format(Harvest_month_date,"%m"))
-    # 
-   
     ## After checking if planting and harvest happens in the same year, get the date of the year 
     countryCoord$startingDate <- Planting_month_date
     countryCoord$endDate <- Harvest_month_date
     countryCoord <- countryCoord[complete.cases(countryCoord), ]
     names(countryCoord) <- c("longitude", "latitude", "startingDate", "endDate")
-    ground <- countryCoord[, c("longitude", "latitude", "startingDate", "endDate")]
+    countryCoord$ID <- c(1:nrow(countryCoord))
+    ground <- countryCoord[, c("longitude", "latitude", "startingDate", "endDate", "ID")]
     
   }else{
     inputData <- unique(inputData[, c("lon", "lat", "plantingDate", "harvestDate")])
-    if(is.null(inputData$ID)){
-      inputData$ID <- c(1:nrow(inputData)) 
-    }
     inputData$plantingDate <- as.Date(inputData$plantingDate)
     inputData$harvestDate <- as.Date(inputData$harvestDate)
     inputData$plantingDate <- inputData$plantingDate %m-% months(1)
     inputData <- inputData[complete.cases(inputData), ]
+    inputData$ID <- c(1:nrow(inputData))
     names(inputData) <- c("longitude", "latitude", "startingDate", "endDate", "ID")
     ground <- inputData
   }
@@ -229,10 +223,7 @@ get_weather_pointData <- function(country, inputData,  AOI=FALSE, Planting_month
     maxDaysDiff <- abs(max(min(ground$pl_j) - max(ground$hv_j)))
     end <- maxDaysDiff +  as.Date(max(ground$endDate)) # start + as.difftime(maxDaysDiff, units="days")
     ddates <- seq(from=start, to=end, by=1)
-    
    
-    
-
     # create list of all possible column names to be able to row bind data from different sites with different planting and harvest dates ranges
     # rf_names <- c(paste0(varName, "_",  c(min(ground$pl_j):max(ground$hv_j))))
     rf_names <- c(paste0(varName, "_",  ddates))
@@ -245,7 +236,7 @@ get_weather_pointData <- function(country, inputData,  AOI=FALSE, Planting_month
     data_points <- NULL
     for(i in 1:nrow(ground)){
       print(i)
-      groundi <- ground[i, c("longitude", "latitude", "startingDate", "endDate","ID", "NAME_1", "NAME_2","yearPi", "yearHi", "pl_j", "hv_j")]
+      groundi <- ground[i, c("longitude", "latitude", "startingDate", "endDate", "ID", "NAME_1", "NAME_2","yearPi", "yearHi", "pl_j", "hv_j")]
       yearPi <- as.numeric(groundi$yearPi)
       yearHi <- as.numeric(groundi$yearHi)
       pl_j <- groundi$pl_j
@@ -303,6 +294,8 @@ get_weather_pointData <- function(country, inputData,  AOI=FALSE, Planting_month
     }
   }
   
+  
+  
   data_points <- data_points %>% 
     select_if(~sum(!is.na(.)) > 0)
   
@@ -346,9 +339,10 @@ get_soil_DEM_pointData <- function(country, inputData, soilProfile = FALSE, path
  
   ## 2. read the shape file of the country and crop the global data
   countryShp <- geodata::gadm(country, level = 2, path='.')
-
+  inputData <- unique(inputData[, c("lon", "lat")])
+  inputData <- inputData[complete.cases(inputData), ]
+  inputData$ID <- c(1:nrow(inputData))
   gpsPoints <- unique(inputData[, c("lon", "lat")])
-  gpsPoints <- gpsPoints[complete.cases(gpsPoints), ]
   gpsPoints$x <- as.numeric(gpsPoints$lon)
   gpsPoints$y <- as.numeric(gpsPoints$lat)
   gpsPoints <- gpsPoints[, c("x", "y")]
@@ -373,7 +367,7 @@ get_soil_DEM_pointData <- function(country, inputData, soilProfile = FALSE, path
       }
       
       
-      ##### permanent wilting point ####
+      ##### permanent wilting point (cm3/cm3) ####
       for(i in 1:length(depths)) {
         croppedLayer_soil[[paste0("PWP_",depths[i])]] <- (-0.024 * croppedLayer_soil[[paste0("sand_",depths[i])]]/100) + 0.487 *
           croppedLayer_soil[[paste0("clay_",depths[i])]]/100 + 0.006 * croppedLayer_soil[[paste0("SOM_",depths[i])]] + 
@@ -384,7 +378,7 @@ get_soil_DEM_pointData <- function(country, inputData, soilProfile = FALSE, path
                                                             (0.14 * croppedLayer_soil[[paste0("PWP_",depths[i])]] - 0.02))
       }
       
-      ##### FC ######
+      ##### FC (cm3/cm3) ######
       for(i in 1:length(depths)) {
         croppedLayer_soil[[paste0("FC_",depths[i])]] <- -0.251 * croppedLayer_soil[[paste0("sand_",depths[i])]]/100 + 0.195 * 
           croppedLayer_soil[[paste0("clay_",depths[i])]]/100 + 0.011 * croppedLayer_soil[[paste0("SOM_",depths[i])]] + 
@@ -396,7 +390,7 @@ get_soil_DEM_pointData <- function(country, inputData, soilProfile = FALSE, path
       }
       
       
-      ##### soil water at saturation ######
+      ##### soil water at saturation (cm3/cm3) ######
       for(i in 1:length(depths)) {
         croppedLayer_soil[[paste0("SWS_",depths[i])]] <- 0.278*(croppedLayer_soil[[paste0("sand_",depths[i])]]/100)+0.034*
           (croppedLayer_soil[[paste0("clay_",depths[i])]]/100)+0.022*croppedLayer_soil[[paste0("SOM_",depths[i])]] -
@@ -408,7 +402,7 @@ get_soil_DEM_pointData <- function(country, inputData, soilProfile = FALSE, path
         
       }
       
-      ##### saturated conductivity ######
+      ##### saturated conductivity (mm/h) ######
       for(i in 1:length(depths)) {
         b = (log(1500)-log(33))/(log(croppedLayer_soil[[paste0("FC_",depths[i])]])-log(croppedLayer_soil[[paste0("PWP_",depths[i])]]))
         lambda <- 1/b
@@ -426,7 +420,7 @@ get_soil_DEM_pointData <- function(country, inputData, soilProfile = FALSE, path
         croppedLayer_soil[[paste0("SOM_",depths[i])]] <- (croppedLayer_soil[[paste0("oc_",depths[i])]] * 2)/10
       }
       
-      ##### permanent wilting point ####
+      ##### permanent wilting point (cm3/cm3) ####
       for(i in 1:length(depths)) {
         croppedLayer_soil[[paste0("PWP_",depths[i])]] <- (-0.024 * croppedLayer_soil[[paste0("sand.tot.psa_",depths[i])]]/100) + 0.487 *
           croppedLayer_soil[[paste0("clay.tot.psa_",depths[i])]]/100 + 0.006 * croppedLayer_soil[[paste0("SOM_",depths[i])]] + 
@@ -438,7 +432,7 @@ get_soil_DEM_pointData <- function(country, inputData, soilProfile = FALSE, path
       
       
       
-      ##### FC ######
+      ##### FC (cm3/cm3) ######
       for(i in 1:length(depths)) {
         croppedLayer_soil[[paste0("FC_",depths[i])]] <- -0.251 * croppedLayer_soil[[paste0("sand.tot.psa_",depths[i])]]/100 + 0.195 * 
           croppedLayer_soil[[paste0("clay.tot.psa_",depths[i])]]/100 + 0.011 * croppedLayer_soil[[paste0("SOM_",depths[i])]] + 
@@ -450,7 +444,7 @@ get_soil_DEM_pointData <- function(country, inputData, soilProfile = FALSE, path
       }
       
       
-      ##### soil water at saturation ######
+      ##### soil water at saturation (cm3/cm3) ######
       for(i in 1:length(depths)) {
         croppedLayer_soil[[paste0("SWS_",depths[i])]] <- 0.278*(croppedLayer_soil[[paste0("sand.tot.psa_",depths[i])]]/100)+0.034*
           (croppedLayer_soil[[paste0("clay.tot.psa_",depths[i])]]/100)+0.022*croppedLayer_soil[[paste0("SOM_",depths[i])]] -
@@ -462,7 +456,7 @@ get_soil_DEM_pointData <- function(country, inputData, soilProfile = FALSE, path
         
       }
       
-      ##### saturated conductivity ######
+      ##### saturated conductivity (mm/h) ######
       for(i in 1:length(depths)) {
         b = (log(1500)-log(33))/(log(croppedLayer_soil[[paste0("FC_",depths[i])]])-log(croppedLayer_soil[[paste0("PWP_",depths[i])]]))
         lambda <- 1/b
@@ -473,9 +467,8 @@ get_soil_DEM_pointData <- function(country, inputData, soilProfile = FALSE, path
       names(croppedLayer_soil) <- gsub("20-50cm", "bottom", names(croppedLayer_soil))
       names(croppedLayer_soil) <- gsub("_0-200cm", "", names(croppedLayer_soil))
       names(croppedLayer_soil) <- gsub("\\.", "_",  names(croppedLayer_soil)) 
-      croppedLayer_isric <- terra::crop(readLayers_soil_isric, countryShp)
+      croppedLayer_isric <- terra::crop(readLayers_soil_isric, countryShpA)
       names(croppedLayer_isric) <- gsub("0-30cm", "0_30", names(croppedLayer_isric))
-      
       soilData <- c(croppedLayer_soil, croppedLayer_isric)
     }
     if(aC == areasCovered[1]){
@@ -490,9 +483,9 @@ get_soil_DEM_pointData <- function(country, inputData, soilProfile = FALSE, path
   ## 4. Extract point soil data 
   pointDataSoil <- as.data.frame(raster::extract(soilData_allregion, gpsPoints))
   pointDataSoil <- subset(pointDataSoil, select=-c(ID))
-  names(gpsPoints) <- c("lon", "lat")
-  pointDataSoil <- cbind(gpsPoints, pointDataSoil)
-  
+  # names(gpsPoints) <- c("lon", "lat")
+  pointDataSoil <- cbind(inputData, pointDataSoil)
+ 
  
   dd2 <- raster::extract(countryShp, gpsPoints)[, c("NAME_1", "NAME_2")]
   pointDataSoil$NAME_1 <- dd2$NAME_1
@@ -545,7 +538,7 @@ get_soil_DEM_pointData <- function(country, inputData, soilProfile = FALSE, path
   datatopo <- terra::extract(topoLayer, gpsPoints, method='simple', cells=FALSE)
   datatopo <- subset(datatopo, select=-c(ID))
   topoData <- cbind(gpsPoints, datatopo)
-  names(topoData) <- c("lon", "lat", "altitude", "slope", "TPI", "TRI" )
+  names(topoData) <- c("lon", "lat" ,"altitude", "slope", "TPI", "TRI" )
   pointDataSoil <- unique(merge(pointDataSoil, topoData, by=c("lon", "lat")))
   
   
@@ -581,12 +574,14 @@ get_soil_DEM_pointData <- function(country, inputData, soilProfile = FALSE, path
 
 ################################################################################
 #' Title Extract soil, DEM and daily weather data
+#' This function reads the input data for GPS and dates for specific country-use Case-crop combination, in data-curation result folder and should be saved 
+#' for the trial sites named as "compiled_fieldData.RDS" and for target areas as AOI_GPS.RDS. The input data should have lon, lat, ID, planting and harvest dates
 #'
 #' @param country country name to be used for cropping, extracting the top two administrative region names and to define input and output paths
 #' @param useCaseName use case name or a project name, and this is used to define input and output paths
 #' @param Crop is crop name and is used to define input and output paths
 #' @param AOI is TRUE is the input data has defined planting and harvest dates otherwise FALSE
-#' @param Planting_month_date planting month and date in mm-dd format and must be provided if AOI is TRUE. It is the earliest possible planting date in the targert area. 
+#' @param Planting_month_date planting month and date in mm-dd format and must be provided if AOI is TRUE. It is the earliest possible planting date in the target area. 
 #' @param Harvest_month_date harvest month and date in mm-dd format and must be provided if AOI is TRUE 
 #' @param plantingWindow is given when several planting dates are to be tested to determine optimal planting date and it should be given in number of weeks starting from Planting_month_date 
 #' @param weatherData is TRUE is weather data is required otherwise FALSE
@@ -611,6 +606,7 @@ extract_geoSpatialPointData <- function(country, useCaseName, Crop,
   }else{
     inputData <- readRDS(paste("~/agwise-datacuration/dataops/datacuration/Data/useCase_",country, "_", useCaseName,"/", Crop, "/result/compiled_fieldData.RDS", sep=""))
   }
+  
   
     pathOut1 <- paste("~/agwise-datasourcing/dataops/datasourcing/Data/useCase_", country, "_", useCaseName,"/", Crop, "/result/geo_4cropModel/", sep="")
     pathOut2 <- paste("~/agwise-potentialyield/dataops/potentialyield/Data/useCase_", country, "_", useCaseName,"/", Crop, "/raw/geo_4cropModel", sep="")
@@ -673,11 +669,6 @@ extract_geoSpatialPointData <- function(country, useCaseName, Crop,
     
   }
     
-    
-
-    
-    
-  
   if(weatherData == TRUE & soilData == TRUE & season == 1){
     wData[[7]] <- sData
     return(wData)
@@ -952,7 +943,8 @@ get_WeatherSummarydata <- function(country, useCaseName, Crop, AOI = FALSE,
   # Input point data AOI / Trial
   if(AOI == TRUE){
     countryCoord <- readRDS(paste("~/agwise-datacuration/dataops/datacuration/Data/useCase_", country, "_",useCaseName, "/", Crop, "/result/AOI_GPS.RDS", sep=""))
-    countryCoord <- unique(countryCoord[, c("lon", "lat")])
+    countryCoord$ID <- c(1:nrow(countryCoord))
+    countryCoord <- unique(countryCoord[, c("lon", "lat", "ID")])
    
     ## check if both planting and harvest dates are in the same year
     Planting_month <- as.numeric(str_extract(Planting_month_date, "[^-]+"))
@@ -964,7 +956,7 @@ get_WeatherSummarydata <- function(country, useCaseName, Crop, AOI = FALSE,
     }
     
   # add a palce holder for the year to get the julian date  
-    if (planting_harvest_sameYear ==TRUE){
+    if(planting_harvest_sameYear ==TRUE){
       countryCoord$plantingDate <- paste(2001, Planting_month_date, sep="-")
       countryCoord$harvestDate <- paste(2001, Harvest_month_date, sep="-")
     }else{
@@ -972,13 +964,14 @@ get_WeatherSummarydata <- function(country, useCaseName, Crop, AOI = FALSE,
       countryCoord$harvestDate <- paste(2002, Harvest_month_date, sep="-")
     }
     countryCoord <- countryCoord[complete.cases(countryCoord),]
-    names(countryCoord) <- c("longitude", "latitude", "plantingDate", "harvestDate")
+    names(countryCoord) <- c("longitude", "latitude", "ID" ,"plantingDate", "harvestDate")
     ground <- countryCoord
   }else{
     GPS_fieldData <- readRDS(paste("~/agwise-datacuration/dataops/datacuration/Data/useCase_",country, "_",useCaseName, "/", Crop, "/result/compiled_fieldData.RDS", sep=""))  
     countryCoord <- unique(GPS_fieldData[, c("lon", "lat", "plantingDate", "harvestDate")])
+    countryCoord$ID <- c(1:nrow(countryCoord))
     countryCoord <- countryCoord[complete.cases(countryCoord), ]
-    names(countryCoord) <- c("longitude", "latitude", "plantingDate", "harvestDate")
+    names(countryCoord) <- c("longitude", "latitude", "plantingDate", "harvestDate", "ID")
     ground <- countryCoord
   }
   
@@ -1296,39 +1289,39 @@ get_WeatherSummarydata <- function(country, useCaseName, Crop, AOI = FALSE,
 #' dataSource = "CHIRPS", Planting_month_date = "02_05", ID = "TLID")
 
 join_geospatial_4ML <- function(country, useCaseName, Crop, AOI, Planting_month_date, dataSource=NULL, ID, overwrite = TRUE){
-  
-  
-  ## create directories to save output 
+
+
+  ## create directories to save output
   pathOut1 <- paste("/home/jovyan/agwise-datasourcing/dataops/datasourcing/Data/useCase_", country, "_",useCaseName, "/", Crop, "/result/geo_4ML", sep="")
   pathOut2 <- paste("/home/jovyan/agwise-responsefunctions/dataops/responsefunctions/Data/useCase_", country, "_",useCaseName, "/", Crop, "/raw/geo_4ML", sep="")
-  
-  
+
+
   if (!dir.exists(pathOut1)){
     dir.create(file.path(pathOut1), recursive = TRUE)
   }
-  
+
   if (!dir.exists(pathOut2)){
     dir.create(file.path(pathOut2), recursive = TRUE)
   }
-  
-  
+
+
   if (AOI == FALSE){
     ## trial sites info
-    GPS_Data <- readRDS(paste("~/agwise-datacuration/dataops/datacuration/Data/useCase_",country, "_",useCaseName, "/", Crop, "/result/compiled_fieldData.RDS", sep=""))  
+    GPS_Data <- readRDS(paste("~/agwise-datacuration/dataops/datacuration/Data/useCase_",country, "_",useCaseName, "/", Crop, "/result/compiled_fieldData.RDS", sep=""))
     GPS_Data$Yield <- round(GPS_Data$TY, 3)
     GPS_Data <- subset(GPS_Data, select=-c(TY))
     ## geo spatial point data with no time dimension
     Soil_Topo_PointData <- readRDS(paste("/home/jovyan/agwise-datasourcing/dataops/datasourcing/Data/useCase_",country, "_",useCaseName, "/", Crop, "/result/SoilDEM_PointData_trial.RDS", sep=""))
-    
-    ## daily geo spatial point data 
+
+    ## daily geo spatial point data
     Rainfall_summaries <- readRDS(paste("/home/jovyan/agwise-datasourcing/dataops/datasourcing/Data/useCase_",country, "_",useCaseName, "/", Crop, "/result/Rainfall/Rainfall_summaries_trial_CHIRPS.RDS", sep=""))
     WindSpeed_summaries <- readRDS(paste("/home/jovyan/agwise-datasourcing/dataops/datasourcing/Data/useCase_",country, "_",useCaseName, "/", Crop, "/result/WindSpeed/WindSpeed_summaries_trial_AgEra.RDS", sep=""))
     Tmax_summaries <- readRDS(paste("/home/jovyan/agwise-datasourcing/dataops/datasourcing/Data/useCase_",country, "_",useCaseName, "/", Crop, "/result/Temperature/Tmax_summaries_trial_AgEra.RDS", sep=""))
     Tmin_summaries <- readRDS(paste("/home/jovyan/agwise-datasourcing/dataops/datasourcing/Data/useCase_",country, "_",useCaseName, "/", Crop, "/result/Temperature/Tmin_summaries_trial_AgEra.RDS", sep=""))
     SolarRadiation_summaries <- readRDS(paste("/home/jovyan/agwise-datasourcing/dataops/datasourcing/Data/useCase_",country, "_",useCaseName, "/", Crop, "/result/SolarRadiation/SolarRadiation_summaries_trial_AgEra.RDS", sep=""))
     RelativeHumidity_summaries <- readRDS(paste("/home/jovyan/agwise-datasourcing/dataops/datasourcing/Data/useCase_",country, "_",useCaseName, "/", Crop, "/result/RelativeHumidity/RelativeHumidity_summaries_trial_AgEra.RDS", sep=""))
-    
-    
+
+
     ### drop NA columns
     Rainfall_summaries <- Rainfall_summaries %>% select_if(~all(!is.na(.)))
     WindSpeed_summaries <- WindSpeed_summaries %>% select_if(~all(!is.na(.)))
@@ -1336,7 +1329,7 @@ join_geospatial_4ML <- function(country, useCaseName, Crop, AOI, Planting_month_
     Tmin_summaries <- Tmin_summaries %>% select_if(~all(!is.na(.)))
     SolarRadiation_summaries <- SolarRadiation_summaries %>% select_if(~all(!is.na(.)))
     RelativeHumidity_summaries <- RelativeHumidity_summaries %>% select_if(~all(!is.na(.)))
-    
+
     ### keep locations where we have field data
     GPS_Data$location <- paste(GPS_Data$lon, GPS_Data$lat, sep="_")
     Rainfall_summaries$location <- paste(Rainfall_summaries$longitude, Rainfall_summaries$latitude, sep="_")
@@ -1347,7 +1340,7 @@ join_geospatial_4ML <- function(country, useCaseName, Crop, AOI, Planting_month_
     SolarRadiation_summaries$location <- paste(SolarRadiation_summaries$longitude, SolarRadiation_summaries$latitude, sep="_")
     Topography_PointData$location <- paste(Topography_PointData$longitude, Topography_PointData$latitude, sep="_")
     Soil_PointData$location <- paste(Soil_PointData$longitude, Soil_PointData$latitude, sep="_")
-    
+
     Rainfall_summaries <- droplevels(Rainfall_summaries[Rainfall_summaries$location  %in% GPS_Data$location, ])
     Tmax_summaries <- droplevels(Tmax_summaries[Tmax_summaries$location  %in% GPS_Data$location, ])
     Tmin_summaries <- droplevels(Tmin_summaries[Tmin_summaries$location  %in% GPS_Data$location, ])
@@ -1356,9 +1349,9 @@ join_geospatial_4ML <- function(country, useCaseName, Crop, AOI, Planting_month_
     SolarRadiation_summaries <- droplevels(SolarRadiation_summaries[SolarRadiation_summaries$location  %in% GPS_Data$location, ])
     Topography_PointData <- droplevels(Topography_PointData[Topography_PointData$location  %in% GPS_Data$location, ])
     Soil_PointData <- droplevels(Soil_PointData[Soil_PointData$location  %in% GPS_Data$location, ])
-    
-    
-    ## merge data 
+
+
+    ## merge data
     Rainfall_summaries <- subset(Rainfall_summaries, select=-c(location, longitude, latitude, plantingDate, harvestDate, NAME_1, NAME_2))
     Tmax_summaries <- subset(Tmax_summaries, select=-c(location, longitude, latitude, plantingDate, harvestDate,NAME_1, NAME_2))
     Tmin_summaries <- subset(Tmin_summaries, select=-c(location, longitude, latitude, plantingDate, harvestDate, NAME_1, NAME_2))
@@ -1369,25 +1362,25 @@ join_geospatial_4ML <- function(country, useCaseName, Crop, AOI, Planting_month_
     Topography_PointData <- subset(Topography_PointData, select=-c(location, longitude, latitude, ID))
     Soil_PointData$TLID <- Soil_PointData$ID
     Soil_PointData <- subset(Soil_PointData, select=-c(location, longitude, latitude, ID))
-    
-    
+
+
     df_list1 <- list(GPS_Data, Rainfall_summaries, Tmax_summaries, Tmin_summaries, RelativeHumidity_summaries, SolarRadiation_summaries)
     merged_df1 <- Reduce(function(x, y) merge(x, y, by = ID), df_list1)
     head(merged_df1)
-    
-    merged_df2 <- Topography_PointData %>% 
+
+    merged_df2 <- Topography_PointData %>%
       left_join(Soil_PointData) %>%
       left_join(GPS_Data) %>%
       left_join(merged_df1)
-    
+
   }else{
     Planting_month_date <- gsub("-", "_", Planting_month_date)
-    
+
     ## geo-spatial point data with no time dimension
     Topography_PointData <- readRDS(paste("/home/jovyan/agwise-datasourcing/dataops/datasourcing/Data/useCase_",country, "_",useCaseName, "/", Crop, "/result/Topography/Topography_PointData_AOI.RDS", sep=""))
     Soil_PointData <- readRDS(paste("/home/jovyan/agwise-datasourcing/dataops/datasourcing/Data/useCase_",country, "_",useCaseName, "/", Crop, "/result/Soil/Soil_PointData_AOI.RDS", sep=""))
-    
-    ## daily geo spatial point data 
+
+    ## daily geo spatial point data
     if(dataSource == "CHIRPS"){
       Rainfall_summaries <- readRDS(paste("/home/jovyan/agwise-datasourcing/dataops/datasourcing/Data/useCase_",country, "_",useCaseName, "/", Crop, "/result/Rainfall/Rainfall_summaries_AOI_", Planting_month_date, "_CHIRPS.RDS", sep=""))
     }else{
@@ -1397,7 +1390,7 @@ join_geospatial_4ML <- function(country, useCaseName, Crop, AOI, Planting_month_
     Tmin_summaries <- readRDS(paste("/home/jovyan/agwise-datasourcing/dataops/datasourcing/Data/useCase_",country, "_",useCaseName, "/", Crop, "/result/Temperature/Tmin_summaries_AOI_", Planting_month_date, "_AgEra.RDS", sep=""))
     SolarRadiation_summaries <- readRDS(paste("/home/jovyan/agwise-datasourcing/dataops/datasourcing/Data/useCase_",country, "_",useCaseName, "/", Crop, "/result/SolarRadiation/SolarRadiation_summaries_AOI_", Planting_month_date, "_AgEra.RDS", sep=""))
     RelativeHumidity_summaries <- readRDS(paste("/home/jovyan/agwise-datasourcing/dataops/datasourcing/Data/useCase_",country, "_",useCaseName, "/", Crop, "/result/RelativeHumidity/RelativeHumidity_summaries_AOI_",Planting_month_date, "_AgEra.RDS", sep=""))
-    
+
     ## merging data
     Meta_summaries <- unique(Rainfall_summaries[, c("Planting", "Harvesting", "plantingDate", "harvestDate")])
     Rainfall_summaries <- subset(Rainfall_summaries, select=-c(Planting, Harvesting, harvestYear, plantingDate, harvestDate))
@@ -1405,32 +1398,32 @@ join_geospatial_4ML <- function(country, useCaseName, Crop, AOI, Planting_month_
     Tmin_summaries <- subset(Tmin_summaries, select=-c(Planting, Harvesting, harvestYear, plantingDate, harvestDate))
     RelativeHumidity_summaries <- subset(RelativeHumidity_summaries, select=-c(Planting, Harvesting, harvestYear, plantingDate, harvestDate))
     SolarRadiation_summaries <- subset(SolarRadiation_summaries, select=-c(Planting, Harvesting, harvestYear, plantingDate, harvestDate))
-    
-    
+
+
     df_list1 <- list(Rainfall_summaries, Tmax_summaries, Tmin_summaries, RelativeHumidity_summaries, SolarRadiation_summaries)
     merged_df1 <- Reduce(function(x, y) merge(x, y, by = c("longitude", "latitude", "plantingYear", "NAME_1", "NAME_2"), all = TRUE), df_list1)
     head(merged_df1)
-    
+
     df_list2 <- list(merged_df1, Topography_PointData, Soil_PointData)
     merged_df2 <- Reduce(function(x, y) merge(x, y, by = c("longitude", "latitude", "NAME_1", "NAME_2"), all = TRUE), df_list2)
-    
-    
+
+
     merged_df2 <- merged_df2[!merged_df2$plantingYear %in% c(1979, 1980, 2023), ] ## not all layers have data for 1979 and 1980 and 2023 is incomplete
     merged_df2 <- merged_df2[order(merged_df2$plantingYear), ]
-    
+
   }
-  
+
   # merged_df2 <- merged_df2[complete.cases(merged_df2), ]
   Planting_month_date <- gsub("-", "_", Planting_month_date)
-  
+
   fname <- ifelse(AOI == TRUE, paste("geoSpatial_4ML_AOI_", Planting_month_date, ".RDS", sep=""), "geoSpatial_4ML_trial.RDS")
-  
+
   saveRDS(merged_df2, paste(pathOut1, fname , sep="/"))
   # saveRDS(object = merged_df2, file=paste(pathOut2, fname, sep=""))
   saveRDS(merged_df2, paste(pathOut3, fname, sep="/"))
-  
+
   return(merged_df2)
-  
-  
+
+
 }
 
