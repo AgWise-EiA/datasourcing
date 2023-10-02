@@ -26,6 +26,12 @@ RAB_potato_weather_soil_AOI_profileS1 <- extract_geoSpatialPointData(country = "
                                                             season = 1, jobs =10)
 
 
+## Soil data for trial sites for ML
+RAB_Potato_weather_soil_trial_profile <- extract_geoSpatialPointData(country = "Rwanda", useCaseName = "RAB", Crop = "Potato", 
+                                                                     AOI=FALSE, Planting_month_date=NULL, Harvest_month_date=NULL, 
+                                                                     soilData = TRUE, weatherData = FALSE, soilProfile = FALSE, 
+                                                                     jobs =10)
+
 
 
 ##$$$$$$$$$ 2. summarized weather data for ML

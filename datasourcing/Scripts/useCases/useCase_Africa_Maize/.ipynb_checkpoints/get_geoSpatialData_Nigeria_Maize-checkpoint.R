@@ -28,6 +28,10 @@ NG_maize_weather_soil_AOI_profileS1 <- extract_geoSpatialPointData(country = "Rw
                                                             season = 1, jobs =10)
 
 
+
+
+  
+
 ##$$$$$$$$$ 2. summarized weather data for ML
 
 get_WeatherSummarydata(country = "Nigeria", useCaseName = "AKILIMO", Crop = "Maize", AOI = FALSE, 

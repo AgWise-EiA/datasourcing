@@ -72,8 +72,6 @@ get_weather_pointData <- function(country, inputData,  AOI=FALSE, Planting_month
     }
   }
 
-    
-  
   ## 1. read all the raster files 
   if(varName == "Rainfall"){
     listRaster <-list.files(path="/home/jovyan/agwise-datasourcing/dataops/datasourcing/Data/Global_GeoData/Landing/Rainfall/chirps", pattern=".nc$", full.names = TRUE)
@@ -134,7 +132,6 @@ get_weather_pointData <- function(country, inputData,  AOI=FALSE, Planting_month
       
       cls <- makeCluster(jobs)
       doParallel::registerDoParallel(cls)
-      
       
       rf_result <- foreach(i=1:length(listRaster), .packages = c('terra', 'plyr', 'stringr','tidyr')) %dopar% {
         rasti <- listRaster[i]
@@ -271,7 +268,6 @@ get_weather_pointData <- function(country, inputData,  AOI=FALSE, Planting_month
       }else if (varName == "solarRadiation"){
         raini <- raini/1000000
       }
-      
       
       start <- as.Date(unique(groundi$startingDate))
       maxDaysDiff <- as.numeric(groundi$endDate - groundi$startingDate)
@@ -492,7 +488,6 @@ get_soil_DEM_pointData <- function(country, inputData, soilProfile = FALSE, path
   pointDataSoil$NAME_2 <- dd2$NAME_2
   
   
-  
   ## 5. Extract DEM data: at lon and lat at steps of 5 degree
   countryExt <- terra::ext(countryShp[countryShp$NAME_1 %in% areasCovered])
   
@@ -568,9 +563,6 @@ get_soil_DEM_pointData <- function(country, inputData, soilProfile = FALSE, path
   
   return(pointDataSoil)
 }
-
-
-
 
 ################################################################################
 #' Title Extract soil, DEM and daily weather data
