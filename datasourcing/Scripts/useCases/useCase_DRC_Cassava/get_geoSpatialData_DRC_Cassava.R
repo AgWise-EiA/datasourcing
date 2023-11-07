@@ -10,9 +10,9 @@ source("~/agwise-datasourcing/dataops/datasourcing/Scripts/generic/get_geoSpatia
 ############### 1.  get the point data for crop models use ####################
 
 ## weather + the 6 depth ISRIC soil data  for trial sites
-RAB_Rice_weather_soil_trial_profile <- extract_geoSpatialPointData(country = "Rwanda", useCaseName = "RAB", Crop = "Rice", 
+cassava_weather_soil_trial_profile <- extract_geoSpatialPointData(country = "DRC", useCaseName = "Cassava", Crop = "Cassava", 
                                                  AOI=FALSE, Planting_month_date=NULL, Harvest_month_date=NULL, 
-                                                 soilData = TRUE, weatherData = TRUE, soilProfile = TRUE, 
+                                                 soilData = TRUE, weatherData = TRUE, soilProfile = FALSE, 
                                                  jobs =10)
 
 

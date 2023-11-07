@@ -13,8 +13,8 @@ source("~/agwise-datasourcing/dataops/datasourcing/Scripts/generic/get_geoSpatia
 
 ##$$$$$$$$$$$ 1.  get the point data
 
-## weather + the 6 depth ISRIC soil data  for trial sites
-NG_maize_weather_soil_trial_profile <- extract_geoSpatialPointData(country = "Nigeria", useCaseName = "AKILIMO", Crop = "Maize", 
+## weather + the 6 depth ISRIC soil data  for trial sites : crop model
+NG_maize_weather_soil_trial_profile <- extract_geoSpatialPointData(country = "Ethiopia", useCaseName = "harmonizeDST", Crop = "Maize", 
                                                  AOI=FALSE, Planting_month_date=NULL, Harvest_month_date=NULL, 
                                                  soilData = TRUE, weatherData = TRUE, soilProfile = TRUE, 
                                                  jobs =10)
@@ -22,7 +22,7 @@ NG_maize_weather_soil_trial_profile <- extract_geoSpatialPointData(country = "Ni
 
 
 ## weather + the 6 depth ISRIC soil data  for AOI for season 1
-NG_maize_weather_soil_AOI_profileS1 <- extract_geoSpatialPointData(country = "Rwanda", useCaseName = "RAB", Crop = "Maize", 
+NG_maize_weather_soil_AOI_profileS1 <- extract_geoSpatialPointData(country = "Ethiopia", useCaseName = "harmonizeDST", Crop = "Maize", 
                                                             AOI=TRUE, Planting_month_date="---", Harvest_month_date="03-31", 
                                                             soilData = TRUE, weatherData = TRUE, soilProfile = TRUE, plantingWindow = 4, 
                                                             season = 1, jobs =10)
@@ -30,10 +30,10 @@ NG_maize_weather_soil_AOI_profileS1 <- extract_geoSpatialPointData(country = "Rw
 
 ##$$$$$$$$$ 2. summarized weather data for ML
 
-get_WeatherSummarydata(country = "Nigeria", useCaseName = "AKILIMO", Crop = "Maize", AOI = FALSE, 
+get_WeatherSummarydata(country = "Ethiopia", useCaseName = "harmonizeDST", Crop = "Maize", AOI = FALSE, 
                 Planting_month_date=NULL, Harvest_month_date=NULL, jobs=10)
 
-get_WeatherSummarydata(country = "Nigeria", useCaseName = "AKILIMO", Crop = "Maize", AOI = TRUE, 
+get_WeatherSummarydata(country = "Ethiopia", useCaseName = "harmonizeDST", Crop = "Maize", AOI = TRUE, 
                        Planting_month_date="---", Harvest_month_date="---", season = 1,
                        jobs=10)
 

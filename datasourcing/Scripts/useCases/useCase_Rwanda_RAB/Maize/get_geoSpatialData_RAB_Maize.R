@@ -14,7 +14,7 @@ source("~/agwise-datasourcing/dataops/datasourcing/Scripts/generic/get_geoSpatia
 
 ## weather + the 6 depth ISRIC soil data  for trial sites
 RAB_maize_weather_soil_trial_profile <- extract_geoSpatialPointData(country = "Rwanda", useCaseName = "RAB", Crop = "Maize", 
-                                                 AOI=FALSE, Planting_month_date=NULL, Harvest_month_date=NULL, 
+                                                 AOI=FALSE, Planting_month_date=NULL, Harvest_month_date=NULL, season = 1,
                                                  soilData = TRUE, weatherData = TRUE, soilProfile = TRUE, 
                                                  jobs =10)
 
@@ -22,16 +22,16 @@ RAB_maize_weather_soil_trial_profile <- extract_geoSpatialPointData(country = "R
 
 ## weather + the 6 depth ISRIC soil data  for AOI for season 1
 RAB_maize_weather_soil_AOI_profileS1 <- extract_geoSpatialPointData(country = "Rwanda", useCaseName = "RAB", Crop = "Maize", 
-                                                            AOI=TRUE, Planting_month_date="08-15", Harvest_month_date="03-31", 
-                                                            soilData = TRUE, weatherData = TRUE, soilProfile = TRUE, plantingWindow = 4, 
-                                                            season = 1, jobs =10)
+                                                            AOI=TRUE, Planting_month_date="02-01", Harvest_month_date="07-31", 
+                                                            soilData = TRUE, weatherData = TRUE, soilProfile = TRUE, plantingWindow = 8, 
+                                                            season = 1, jobs =4)
 
 
 ## weather for AOI for season 2, soil data is the same as season 1 so we do not need to re-extract that
 RAB_maize_weather_soil_AOI_profileS2 <- extract_geoSpatialPointData(country = "Rwanda", useCaseName = "RAB", Crop = "Maize", 
-                                                                  AOI=TRUE, Planting_month_date="02-15", Harvest_month_date="08-31", 
-                                                                  soilData = FALSE, weatherData = TRUE, soilProfile = TRUE,  plantingWindow = 4,
-                                                                  season = 2, jobs =10)
+                                                                  AOI=TRUE, Planting_month_date="08-01", Harvest_month_date="03-01", 
+                                                                  soilData = FALSE, weatherData = TRUE, soilProfile = TRUE,  plantingWindow = 8,
+                                                                  season = 2, jobs =4)
 
 
 

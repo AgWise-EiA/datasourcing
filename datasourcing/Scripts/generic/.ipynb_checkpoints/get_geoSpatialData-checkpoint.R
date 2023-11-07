@@ -1,7 +1,9 @@
 #################################################################################################################
 ## sourcing required packages 
 #################################################################################################################
-packages_required <- c("terra", "sf", "rgl", "rgdal", "sp", "geodata", "tidyverse", "geosphere", "countrycode", "lubridate")
+# "geosphere",
+packages_required <- c("terra", "sf", "rgl", "rgdal", "sp", "geodata", "tidyverse",  "countrycode", "lubridate", "plyr", 
+                       "parallel", "foreach")
 
 # check and install packages that are not yet installed
 installed_packages <- packages_required %in% rownames(installed.packages())
@@ -11,16 +13,15 @@ if(any(installed_packages == FALSE)){
 # load required packages
 invisible(lapply(packages_required, library, character.only = TRUE))
 
-
-
 #################################################################################################################
 # Extract geo-spatial data with time dimension 
 #' @description this functions loops through all .nc files (~30 - 40 years) for rain. temperature, solar radiation, wind speed and relative humidity. 
+#' Planting_month_date should be set to one month prior to the earliest possible planting month and date so that data is available to-set initial conditions while running crop model. 
 #' 
 #' @param country country name to be used to extract the first two level of administrative units to attach to the data. 
 #' @param inputData is a data frame and must have the c(lat, lon, plantingDate, harvestDate). For field observations, plantingDate  harvestDate should be given in yyyy-mm-dd format. 
 #' @param AOI TRUE if data for multiple years is required. FALSE if data is required for field trials, for which the actual interval between the planting and harvest dates will be used. 
-#' @param Planting_month_date if AOI is TRUE, Planting_month_date should be provided in mm-dd format. weather data across years between Planting_month_date and Harvest_month_date will be provided
+#' @param Planting_month_date if AOI is TRUE, Planting_month_date should be provided in mm-dd format. weather data across years between Planting_month_date and Harvest_month_date will be provided. 
 #' @param Harvest_month_date if AOI is TRUE, Harvest_month_date should be provided in mm-dd format.  weather data across years between Planting_month_date and Harvest_month_date will be provided
 #' @param varName is the name of the variable for which data is required and it is one of c("Rainfall", "temperatureMax", "temperatureMin", "relativeHumidity", "solarRadiation", "windSpeed")
 #' @param plantingWindow number of weeks starting considering the Planting_month_date as earliest planting week. It is given when several planting dates are to be tested to determine optimal planting date and it should be given in  
@@ -72,7 +73,6 @@ get_weather_pointData <- function(country, inputData,  AOI=FALSE, Planting_month
     }
   }
 
-    
   ## 1. read all the raster files 
   if(varName == "Rainfall"){
     listRaster <-list.files(path="/home/jovyan/agwise-datasourcing/dataops/datasourcing/Data/Global_GeoData/Landing/Rainfall/chirps", pattern=".nc$", full.names = TRUE)
@@ -96,6 +96,7 @@ get_weather_pointData <- function(country, inputData,  AOI=FALSE, Planting_month
   }
   
 
+  
   
   ## 2. format the input data with GPS, dates and ID and add administrative unit info
   if(AOI == TRUE){
@@ -154,7 +155,7 @@ get_weather_pointData <- function(country, inputData,  AOI=FALSE, Planting_month
         maxDaysDiff <- abs(max(min(pl_j) - max(hv_j)))
         end <- start + as.difftime(maxDaysDiff, units="days")
         ddates <- seq(from=start, to=end, by=1)
-        names(raini) <- paste(varName, ddates, sep="_")
+        names(raini) <- paste(varName, ddates[1:length(names(raini))], sep="_")
         # names(raini) <- paste(varName, sub("^[^_]+", "", names(raini)), sep="")
         ground_adj$startingDate <- as.character(ground_adj$startingDate)
         ground_adj$endDate <- as.character(ground_adj$endDate)
@@ -336,14 +337,14 @@ get_soil_DEM_pointData <- function(country, inputData, soilProfile = FALSE, path
  
   ## 2. read the shape file of the country and crop the global data
   countryShp <- geodata::gadm(country, level = 2, path='.')
-  inputData <- unique(inputData[, c("lon", "lat")])
-  inputData <- inputData[complete.cases(inputData), ]
-  inputData$ID <- c(1:nrow(inputData))
-  gpsPoints <- unique(inputData[, c("lon", "lat")])
-  gpsPoints$x <- as.numeric(gpsPoints$lon)
-  gpsPoints$y <- as.numeric(gpsPoints$lat)
-  gpsPoints <- gpsPoints[, c("x", "y")]
-  areasCovered <- unique(c(raster::extract(countryShp, gpsPoints)$NAME_1))
+  inputData2 <- unique(inputData[, c("lon", "lat", "NAME_1", "NAME_2", "country")])
+  inputData2 <- inputData2[complete.cases(inputData2), ]
+  inputData2$ID <- c(1:nrow(inputData2))
+  gpsPoints <- unique(inputData2[, c("lon", "lat")])
+  gpsPoints$lon <- as.numeric(gpsPoints$lon)
+  gpsPoints$lat <- as.numeric(gpsPoints$lat)
+  # gpsPoints <- gpsPoints[, c("x", "y")]
+  areasCovered <- unique(c(raster::extract(countryShp, gpsPoints)$NAME_2))
   areasCovered <- areasCovered[!is.na(areasCovered)]
   print(areasCovered)
   
@@ -352,7 +353,7 @@ get_soil_DEM_pointData <- function(country, inputData, soilProfile = FALSE, path
   
   for(aC in areasCovered){
     print(aC)
-    countryShpA <- countryShp[countryShp$NAME_1 == aC]
+    countryShpA <- countryShp[countryShp$NAME_2 == aC]
     croppedLayer_soil <- terra::crop(readLayers_soil, countryShpA)
     ## 3. apply pedo-transfer functions to get soil organic matter and soil hydraulics variables 
     if (soilProfile == TRUE){
@@ -473,68 +474,66 @@ get_soil_DEM_pointData <- function(country, inputData, soilProfile = FALSE, path
     }else{
       soilData_allregion <- merge(soilData_allregion, soilData)
     }
-    
   }
   
   
   ## 4. Extract point soil data 
   pointDataSoil <- as.data.frame(raster::extract(soilData_allregion, gpsPoints))
   pointDataSoil <- subset(pointDataSoil, select=-c(ID))
-  # names(gpsPoints) <- c("lon", "lat")
-  pointDataSoil <- cbind(inputData, pointDataSoil)
- 
- 
-  dd2 <- raster::extract(countryShp, gpsPoints)[, c("NAME_1", "NAME_2")]
-  pointDataSoil$NAME_1 <- dd2$NAME_1
-  pointDataSoil$NAME_2 <- dd2$NAME_2
-  
-  
+  pointDataSoil <- cbind(unique(inputData2[, c("country", "NAME_1", "NAME_2", "lon", "lat")]), pointDataSoil)
+  # pointDataSoil <- cbind(inputData2[, c( "country",  "province",  "district","subCounty", "lon", "lat")], pointDataSoil)
+
   ## 5. Extract DEM data: at lon and lat at steps of 5 degree
-  countryExt <- terra::ext(countryShp[countryShp$NAME_1 %in% areasCovered])
-  
-  lons <- seq(round_any(countryExt[1], 5)-5, round_any(countryExt[2]-5, 5), 5)
-  lats <- seq(round_any(countryExt[3], 5), round_any(countryExt[4], 5), 5)
+  countryExt <- terra::ext(countryShp[countryShp$NAME_2 %in% unique(inputData2$NAME_2)])
+ 
+  lons <- seq(countryExt[1]-1, countryExt[2]+1, 5)
+  lats <- seq(countryExt[3]-1, countryExt[4]+1, 5)
   griddem <- expand_grid(lons, lats)
 
- 
- dems <- c()
- listRaster_demx <- NULL
- for(g in 1:nrow(griddem)){
-   listRaster_demx <- tryCatch(geodata::elevation_3s(lon=griddem$lons[g], lat=griddem$lats[g], path=pathOut),error=function(e){})
-   dems <- c(dems, listRaster_demx)
- }
- 
- ## if mosaic works with list as dems is here, the next step is not necessary
- if(length(dems) < 12){
-   for (k in c((length(dems)+1):12)){
-     dems[[k]] <- dems[[1]] 
-   }
-   
- }
+    # ## if the extent is not fully within a distince of 5 degrees this does not work, otherwise this would have been better script
+    # listRaster_dem1 <-geodata::elevation_3s(lon=countryExt[1], lat=countryExt[3], path=pathOut) #xmin - ymin
+    # listRaster_dem2 <-geodata::elevation_3s(lon=countryExt[1], lat=countryExt[4], path=pathOut) #xmin - ymax
+    # listRaster_dem3 <-geodata::elevation_3s(lon=countryExt[2], lat=countryExt[3], path=pathOut) #xmax - ymin
+    # listRaster_dem4 <-geodata::elevation_3s(lon=countryExt[2], lat=countryExt[4], path=pathOut) #xmax - ymax
+    # listRaster_dem <- terra::mosaic(listRaster_dem1, listRaster_dem2, listRaster_dem3, listRaster_dem4, fun='mean')
 
- listRaster_dem <- terra::mosaic(dems[[1]], dems[[2]],dems[[3]],dems[[4]],
-               dems[[5]], dems[[6]], dems[[7]],dems[[8]],
-               dems[[9]], dems[[10]], dems[[11]],dems[[12]],fun='mean')
-
- 
- ## if the extent is not fully within a distince of 5 degrees this does not work
-  # listRaster_dem1 <-geodata::elevation_3s(lon=countryExt[1], lat=countryExt[3], path=pathOut) #xmin - ymin
-  # listRaster_dem2 <-geodata::elevation_3s(lon=countryExt[1], lat=countryExt[4], path=pathOut) #xmin - ymax
-  # listRaster_dem3 <-geodata::elevation_3s(lon=countryExt[2], lat=countryExt[3], path=pathOut) #xmax - ymin
-  # listRaster_dem4 <-geodata::elevation_3s(lon=countryExt[2], lat=countryExt[4], path=pathOut) #xmax - ymax
-  # listRaster_dem <- terra::mosaic(listRaster_dem1, listRaster_dem2, listRaster_dem3, listRaster_dem4, fun='mean')
+    dems <- c()
+    listRaster_demx <- NULL
+    for(g in 1:nrow(griddem)){
+      listRaster_demx <- tryCatch(geodata::elevation_3s(lon=griddem$lons[g], lat=griddem$lats[g], path=pathOut),error=function(e){})
+      dems <- c(dems, listRaster_demx)
+    }
+    
+    ## if mosaic works with list as dems is here, the next step is not necessary
+    if(length(dems) == 1){
+      listRaster_dem <- dems[[1]]
+    }else if(length(dems) > 1 & length(dems) < 12){
+      for (k in c((length(dems)+1):12)){
+        dems[[k]] <- dems[[1]] 
+    }
+      ## as it is not possible to define the number of tiles before hand, as assumption is made to have 12 tiles and when that is not the case the first time will be 
+      ## duplicated and the mean of it will be take which should not affect the result
+      listRaster_dem <- terra::mosaic(dems[[1]], dems[[2]],dems[[3]],dems[[4]],
+                                      dems[[5]], dems[[6]], dems[[7]],dems[[8]],
+                                      dems[[9]], dems[[10]], dems[[11]],dems[[12]],
+                                      fun='mean')
+      }
   
-  dem <- terra::crop(listRaster_dem, countryShp)
+
+
+  dem <- terra::crop(listRaster_dem, countryShp[countryShp$NAME_2 %in% unique(inputData2$NAME_2)])
   slope <- terra::terrain(dem, v = 'slope', unit = 'degrees')
   tpi <- terra::terrain(dem, v = 'TPI')
   tri <- terra::terrain(dem, v = 'TRI')
   
+  ### ideally these four dem layers will be made to a list so that point extraction will be done at once, bu CG Labs capacity does not allow that ...
   topoLayer <- terra::rast(list(dem, slope, tpi, tri))
-  names(gpsPoints) <- c("x", "y")
   datatopo <- terra::extract(topoLayer, gpsPoints, method='simple', cells=FALSE)
   datatopo <- subset(datatopo, select=-c(ID))
-  topoData <- cbind(gpsPoints, datatopo)
-  names(topoData) <- c("lon", "lat" ,"altitude", "slope", "TPI", "TRI" )
+  topoData <- cbind(inputData2[, c("lon", "lat")], datatopo)
+  names(topoData) <- c("lon", "lat" ,"altitude", "slope", "TPI", "TRI")
+
+
   pointDataSoil <- unique(merge(pointDataSoil, topoData, by=c("lon", "lat")))
   
   
@@ -600,6 +599,8 @@ extract_geoSpatialPointData <- function(country, useCaseName, Crop,
     inputData <- readRDS(paste("~/agwise-datacuration/dataops/datacuration/Data/useCase_",country, "_", useCaseName,"/", Crop, "/result/compiled_fieldData.RDS", sep=""))
   }
   
+
+  # inputData <- droplevels(inputData[inputData$NAME_1 %in% Regions, ])
   
     pathOut1 <- paste("~/agwise-datasourcing/dataops/datasourcing/Data/useCase_", country, "_", useCaseName,"/", Crop, "/result/geo_4cropModel/", sep="")
     pathOut2 <- paste("~/agwise-potentialyield/dataops/potentialyield/Data/useCase_", country, "_", useCaseName,"/", Crop, "/raw/geo_4cropModel", sep="")
@@ -948,7 +949,7 @@ get_WeatherSummarydata <- function(country, useCaseName, Crop, AOI = FALSE,
       planting_harvest_sameYear <- FALSE
     }
     
-  # add a palce holder for the year to get the julian date  
+  # add a place holder for the year to get the julian date  
     if(planting_harvest_sameYear ==TRUE){
       countryCoord$plantingDate <- paste(2001, Planting_month_date, sep="-")
       countryCoord$harvestDate <- paste(2001, Harvest_month_date, sep="-")
@@ -1419,4 +1420,206 @@ join_geospatial_4ML <- function(country, useCaseName, Crop, AOI, Planting_month_
 
 
 }
+
+
+
+
+
+###############################################################################################
+###############################################################################################
+###############################################################################################
+
+get_weather_seasonality <- function(country, useCaseName, Crop , Planting_month_date=NULL, Harvest_month_date=NULL, varName, plantingWindow=1, jobs){
+  
+  inputData <- readRDS(paste("~/agwise-datacuration/dataops/datacuration/Data/useCase_",country, "_", useCaseName,"/", Crop, "/result/AOI_GPS.RDS", sep=""))
+  
+  
+  
+  # inputData <- droplevels(inputData[inputData$NAME_1 %in% Regions, ])
+  
+  pathOut1 <- paste("~/agwise-datasourcing/dataops/datasourcing/Data/useCase_", country, "_", useCaseName,"/", Crop, "/result/", sep="")
+  
+  if (!dir.exists(pathOut1)){
+    dir.create(file.path(pathOut1), recursive = TRUE)
+  }
+  
+  if(is.null(Planting_month_date) | is.null(Harvest_month_date)){
+      print("with AOI=TRUE, Planting_month_date, Harvest_month_date can not be null, please refer to the documentation and provide mm-dd for both parameters")
+      return(NULL)
+    }
+    
+    ## check if both planting and harvest dates are in the same year
+    Planting_month <- as.numeric(str_extract(Planting_month_date, "[^-]+"))
+    Harvest_month <- as.numeric(str_extract(Harvest_month_date, "[^-]+"))
+    
+    ## py and hy are used only as place holder for formatting purposes
+    if(Planting_month < Harvest_month){
+      planting_harvest_sameYear <- TRUE
+      py <- 2000
+      hy <- 2000
+    }else{
+      planting_harvest_sameYear <- FALSE
+      py <- 2000
+      hy <- 2001
+    }
+    
+    ## set planting date one moth prior to the given Planting_month_date so that initial condition for the crop model could be set correctly
+    Planting_month_date <-as.Date(paste0(py, "-",Planting_month_date)) ## the year is only a place holder to set planting month 1 month earlier
+    Planting_month_date <- Planting_month_date %m-% months(1)
+    
+    ## if multiple planting dates are to be tested, adjust the Harvest_month_date to extract weather data for the later planting dates.  
+    Harvest_month_date <- as.Date(paste0(hy, "-",Harvest_month_date)) ## the year is only a place holder to set planting month 1 month earlier
+    if(plantingWindow > 1 & plantingWindow <= 5){
+      Harvest_month_date <- Harvest_month_date %m+% months(1)
+    }else if(plantingWindow > 5 & plantingWindow <=8){
+      Harvest_month_date <- Harvest_month_date %m+% months(2)
+    }else if(plantingWindow > 8 & plantingWindow <=12){
+      Harvest_month_date <- Harvest_month_date %m+% months(3)
+    }
+  
+  
+  ## 1. read all the raster files 
+  if(varName == "Rainfall"){
+    listRaster <-list.files(path="/home/jovyan/agwise-datasourcing/dataops/datasourcing/Data/Global_GeoData/Landing/Rainfall/chirps", pattern=".nc$", full.names = TRUE)
+  }else if (varName == "temperatureMax"){
+    listRaster <-list.files(path="/home/jovyan/agwise-datasourcing/dataops/datasourcing/Data/Global_GeoData/Landing/TemperatureMax/AgEra", pattern=".nc$", full.names = TRUE)
+  }else if (varName == "temperatureMin"){
+    listRaster <-list.files(path="/home/jovyan/agwise-datasourcing/dataops/datasourcing/Data/Global_GeoData/Landing/TemperatureMin/AgEra", pattern=".nc$", full.names = TRUE)
+  }else if(varName == "relativeHumidity"){
+    listRaster <-list.files(path="/home/jovyan/agwise-datasourcing/dataops/datasourcing/Data/Global_GeoData/Landing/RelativeHumidity/AgEra", pattern=".nc$", full.names = TRUE)
+  }else if(varName == "solarRadiation"){
+    listRaster <-list.files(path="/home/jovyan/agwise-datasourcing/dataops/datasourcing/Data/Global_GeoData/Landing/SolarRadiation/AgEra", pattern=".nc$", full.names = TRUE)
+  }else if(varName == "windSpeed"){
+    listRaster <-list.files(path="/home/jovyan/agwise-datasourcing/dataops/datasourcing/Data/Global_GeoData/Landing/WindSpeed/AgEra", pattern=".nc$", full.names = TRUE)
+  }
+  
+  
+  if(varName == "Rainfall"){
+    listRaster <- listRaster[10:42]
+  }else {
+    listRaster <- listRaster[12:44]
+  }
+  
+  
+  ## 2. format the input data with GPS, dates and ID and add administrative unit info
+    countryCoord <- unique(inputData[, c("lon", "lat")])
+    countryCoord <- countryCoord[complete.cases(countryCoord), ]
+    ## After checking if planting and harvest happens in the same year, get the date of the year 
+    countryCoord$startingDate <- Planting_month_date
+    countryCoord$endDate <- Harvest_month_date
+    countryCoord <- countryCoord[complete.cases(countryCoord), ]
+    names(countryCoord) <- c("longitude", "latitude", "startingDate", "endDate")
+    countryCoord$ID <- c(1:nrow(countryCoord))
+    ground <- countryCoord[, c("longitude", "latitude", "startingDate", "endDate", "ID")]
+    
+  
+  
+  # ground$harvestDate <- as.Date(ground$harvestDate, "%Y-%m-%d")
+  countryShp <- geodata::gadm(country, level = 2, path='.')
+  dd2 <- raster::extract(countryShp, ground[, c("longitude", "latitude")])[, c("NAME_1", "NAME_2")]
+  ground$NAME_1 <- dd2$NAME_1
+  ground$NAME_2 <- dd2$NAME_2
+  
+  ## 3.get the seasonal rainfall parameters for AOI
+    if (planting_harvest_sameYear ==  TRUE) {
+      
+      cls <- makeCluster(jobs)
+      doParallel::registerDoParallel(cls)
+      
+      rf_result <- foreach(i=1:length(listRaster), .packages = c('terra', 'plyr', 'stringr','tidyr')) %dopar% {
+        rasti <- listRaster[i]
+        pl_j <-as.POSIXlt(unique(ground$startingDate))$yday
+        hv_j <-as.POSIXlt(unique(ground$endDate))$yday
+        PlHvD <- terra::rast(rasti, lyrs=c(pl_j:hv_j))
+        xy <- ground[, c("longitude", "latitude")]
+        raini <- terra::extract(PlHvD, xy, method='simple', cells=FALSE)
+        raini <- raini[,-1]
+        if(varName %in% c("temperatureMax","temperatureMin")){
+          raini <- raini-274
+        }else if (varName == "solarRadiation"){
+          raini <- raini/1000000
+        }
+        ground_adj <- ground
+        lubridate::year(ground_adj$startingDate) <- as.numeric(str_extract(rasti, "[[:digit:]]+"))
+        lubridate::year(ground_adj$endDate) <- as.numeric(str_extract(rasti, "[[:digit:]]+"))
+        start <- as.Date(unique(ground_adj$startingDate))
+        maxDaysDiff <- abs(max(min(pl_j) - max(hv_j)))
+        end <- start + as.difftime(maxDaysDiff, units="days")
+        ddates <- seq(from=start, to=end, by=1)
+        # names(raini) <- paste(varName, ddates[1:length(names(raini))], sep="_")
+        # names(raini) <- paste(varName, sub("^[^_]+", "", names(raini)), sep="")
+        ground_adj$startingDate <- as.character(ground_adj$startingDate)
+        ground_adj$endDate <- as.character(ground_adj$endDate)
+        ground2 <- cbind(ground_adj, raini)
+        ground3 <- gather(ground2, year, Rainfall, names(raini)[1]:names(raini)[length(raini)])
+        ground3$location <- paste(ground3$longitude, ground3$latitude, sep="_")
+        ground3 <- ground3 %>%
+          dplyr::group_by(location ) %>%
+          dplyr::mutate(date = c(ddates)) %>%
+          as.data.frame()
+        ground3$pl_year <- as.numeric(str_extract(rast1, "[[:digit:]]+"))
+        ground3 <- subset(ground3, select=-c(startingDate, endDate, ID, year, NAME_2))
+      }
+      
+      data_points <- dplyr::bind_rows(rf_result)
+      stopCluster(cls)
+    }else{
+      cls <- makeCluster(jobs)
+      doParallel::registerDoParallel(cls)
+      ## Rainfall
+      rf_result2 <- foreach(i = 1:(length(listRaster)-1), .packages = c('terra', 'plyr', 'stringr','tidyr')) %dopar% {
+        listRaster <- listRaster[order(listRaster)]
+        rast1 <- listRaster[i]
+        rast2 <- listRaster[i+1]
+        ground_adj <- ground
+        lubridate::year(ground_adj$startingDate) <- as.numeric(str_extract(rast1, "[[:digit:]]+"))
+        lubridate::year(ground_adj$endDate) <- as.numeric(str_extract(rast2, "[[:digit:]]+"))
+        start <- as.Date(unique(ground_adj$startingDate))
+        maxDaysDiff <- as.numeric(max(ground_adj$endDate) - min(ground_adj$startingDate))
+        end <- start + as.difftime(maxDaysDiff, units="days")
+        ddates <- seq(from=start, to=end, by=1)
+        # Convert planting Date and harvesting in Julian Day 
+        pl_j <-as.POSIXlt(unique(ground_adj$startingDate))$yday
+        hv_j <-as.POSIXlt(unique(ground_adj$endDate))$yday
+        rasti1 <- terra::rast(rast1, lyrs=c(pl_j:terra::nlyr(terra::rast(rast1))))
+        rasti2 <- terra::rast(rast2, lyrs=c(1:hv_j))
+        PlHvD <- c(rasti1, rasti2)
+        xy <- ground[, c("longitude", "latitude")]
+        raini <- terra::extract(PlHvD, xy, method='simple', cells=FALSE)
+        raini <- raini[,-1]
+        if(varName %in% c("temperatureMax","temperatureMin")){
+          raini <- raini-274
+        }else if (varName == "solarRadiation"){
+          raini <- raini/1000000
+        }
+        
+       
+        ground2 <- cbind(ground_adj, raini)
+        ground3 <- gather(ground2, year, Rainfall, names(raini)[1]:names(raini)[length(raini)])
+        ground3$location <- paste(ground3$longitude, ground3$latitude, sep="_")
+        ground3 <- ground3 %>%
+          dplyr::group_by(location ) %>%
+          dplyr::mutate(date = c(ddates)) %>%
+          as.data.frame()
+        ground3$pl_year <- as.numeric(str_extract(rast1, "[[:digit:]]+"))
+        ground3 <- subset(ground3, select=-c(startingDate, endDate, ID, year, NAME_2))
+      }
+      data_points <- dplyr::bind_rows(rf_result2)
+      stopCluster(cls)
+    }
+    
+  
+  
+  data_points <- data_points %>% 
+    select_if(~sum(!is.na(.)) > 0)
+  
+  return(data_points)
+}
+
+
+
+
+
+
+
 

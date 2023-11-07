@@ -1,6 +1,6 @@
 
 
-#' create a regular grid of 5 km *5 km resolution and create gps readings. 
+#' create a regular grid of 5 km *5 km resolution and create gps readings. within AgWise we use it only for AOI becasue the exp dat ais supposed to come with GPS info. 
 #'
 #' @param country 
 #' @param useCaseName 
@@ -49,13 +49,14 @@ getCoordinates <- function(country, useCaseName, Crop, resltn, provinces=NULL, d
   rect_coord <- as.data.frame(expand.grid(x = lon_coors, y = lat_coors))
   
 
-  # if(resltn == 0.05){
-  #   rect_coord$x <- floor(rect_coord$Longitude*10)/10 + ifelse(rect_coord$Longitude - (floor(rect_coord$Longitude*10)/10) < 0.05, 0.025, 0.075)
-  #   rect_coord$y <- floor(rect_coord$Latitude*10)/10 + ifelse(abs(rect_coord$Latitude)-(floor(abs(rect_coord$Latitude)*10)/10) < 0.05, 0.025, 0.075)
-  #   rect_coord <- unique(rect_coord[,c("x", "y")])
+  if(resltn == 0.05){
+    rect_coord$x <- floor(rect_coord$x*10)/10 + ifelse(rect_coord$x - (floor(rect_coord$x*10)/10) < 0.05, 0.025, 0.075)
+    rect_coord$y <- floor(rect_coord$y*10)/10 + ifelse(abs(rect_coord$y)-(floor(abs(rect_coord$y)*10)/10) < 0.05, 0.025, 0.075)
+    rect_coord <- unique(rect_coord[,c("x", "y")])
+  }
   # }else if (resltn == 0.01) {
-  #   rect_coord$x <- floor(rect_coord$Longitude*100)/100
-  #   rect_coord$y <- floor(rect_coord$Latitude*100)/100 
+  #   rect_coord$x <- floor(rect_coord$x*100)/100
+  #   rect_coord$y <- floor(rect_coord$y*100)/100 
   #   rect_coord <- unique(rect_coord[,c("x", "y")]) 
   # }else{
   #  names(rect_coord) <- c("x", "y") 
@@ -74,7 +75,6 @@ getCoordinates <- function(country, useCaseName, Crop, resltn, provinces=NULL, d
   }else if (!is.null(district)){
     State_LGA <- droplevels(State_LGA[State_LGA$NAME_2 %in% district, ])
   }
-  
 
   
  saveRDS(State_LGA, paste("~/agwise-datacuration/dataops/datacuration/Data/useCase_", country, "_",useCaseName, "/", Crop, "/result/AOI_GPS.RDS", sep=""))
@@ -84,10 +84,8 @@ getCoordinates <- function(country, useCaseName, Crop, resltn, provinces=NULL, d
 
 
 
-ma <- getCoordinates(country = "Malawi", useCaseName = "Solidaridad", Crop = "Soybean", resltn = 0.05, provinces="Kasungu", district = NULL)
-zm <- getCoordinates(country = "Zambia", useCaseName = "Solidaridad", Crop = "Soybean", resltn = 0.05, provinces=NULL, district = "Katete")
-mz <- getCoordinates(country = "Mozambique", useCaseName = "Solidaridad", Crop = "Soybean", resltn = 0.05, provinces=NULL, district = "Angónia")
-
-
-
+# ma <- getCoordinates(country = "Malawi", useCaseName = "Solidaridad", Crop = "Soybean", resltn = 0.05, provinces="Kasungu", district = NULL)
+# zm <- getCoordinates(country = "Zambia", useCaseName = "Solidaridad", Crop = "Soybean", resltn = 0.05, provinces=NULL, district = "Katete")
+# mz <- getCoordinates(country = "Mozambique", useCaseName = "Solidaridad", Crop = "Soybean", resltn = 0.05, provinces=NULL, district = "Angónia")
+# NG <- getCoordinates(country = "Nigeria", useCaseName = "AKILIMO", Crop = "Maize", resltn = 0.01, provinces=NULL, district = NULL)
 

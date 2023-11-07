@@ -13,6 +13,7 @@ df$ID <- paste0(df$longitude,'-',df$latitude)
 
 sort(unique(df$country))
 par(mar=c(5,5,5,5))
+
 ###############
 # Burkina Faso
 ###############
@@ -72,8 +73,22 @@ eth <- eth[eth$source !='ITTA-Genetic-Camila',]
 
 length(unique(eth_ge$ID))
 length(unique(eth_ge$variety))
-vr <- c("Local check","Local Check","LOCAL CHECK 1","LOCAL CHECK 2","Check")
-eth_ge <- eth_ge[eth_ge$variety %in% vr,]
+
+un_loc <- unique(eth_ge$ID)
+le <- list()
+
+for(lc in 1:length(un_loc)){
+  ll <- eth_ge[eth_ge$ID==un_loc[lc],]
+  sm <- summary(ll$yield)[3]
+  sq <- summary(ll$yield)[5]
+  ll2 <- ll[ll$yield > sm & ll$yield <sq,]
+  m <- mean(ll2$yield)
+  ll2 <- ll2[1,]
+  ll2$yield <- m
+  le[[lc]] <- ll2
+}
+
+eth_ge <- do.call(rbind,le)
 
 eth <- rbind(eth_ge,eth)
 
@@ -109,14 +124,23 @@ gha <- gha[gha$source !='ITTA-Genetic-Camila',]
 
 length(unique(gha_ge$ID))
 sort(unique(gha_ge$variety))
-vr <- c("Local check","Local Check","Local Check - Dodzi","Local Check - DORKE",                           
-        "Local Check - DORKE SR","LOCAL CHECK 1","LOCAL CHECK 2",
-        "Check","CHECK","Check-GH120 DYF/OP","CHECK 1","CHECK 2",
-        "Check1-Obatanpa","Check2-Obatanpa")
-gha_ge <- gha_ge[gha_ge$variety %in% vr,]
+un_loc <- unique(gha_ge$ID)
+le <- list()
+
+for(lc in 1:length(un_loc)){
+  ll <- gha_ge[gha_ge$ID==un_loc[lc],]
+  sm <- summary(ll$yield)[3]
+  sq <- summary(ll$yield)[5]
+  ll2 <- ll[ll$yield > sm & ll$yield <sq,]
+  m <- mean(ll2$yield)
+  ll2 <- ll2[1,]
+  ll2$yield <- m
+  le[[lc]] <- ll2
+}
+
+gha_ge <- do.call(rbind,le)
 
 gha <- rbind(gha_ge,gha)
-
 # b <- boxplot(gha$yield~gha$nut_response_eval)
 # 
 # gha <- gha[!c(gha$nut_response_eval=='Control' & gha$yield > b$stats[5,1]),]
@@ -144,10 +168,24 @@ ken <- ken[ken$source !='ITTA-Genetic-Camila',]
 
 length(unique(ken_ge$ID))
 sort(unique(ken_ge$variety))
-vr <- c('Check',"Local Check","LOCAL CHECK 1","LOCAL CHECK 2")
-ken_ge <- ken_ge[ken_ge$variety %in% vr,]
+un_loc <- unique(ken_ge$ID)
+le <- list()
+
+for(lc in 1:length(un_loc)){
+  ll <- ken_ge[ken_ge$ID==un_loc[lc],]
+  sm <- summary(ll$yield)[3]
+  sq <- summary(ll$yield)[5]
+  ll2 <- ll[ll$yield > sm & ll$yield <sq,]
+  m <- mean(ll2$yield)
+  ll2 <- ll2[1,]
+  ll2$yield <- m
+  le[[lc]] <- ll2
+}
+
+ken_ge <- do.call(rbind,le)
 
 ken <- rbind(ken_ge,ken)
+
 # Remove outliers by nutrient response treat
 # b <- boxplot(ken$yield~ken$nut_response_eval)
 # 
@@ -181,8 +219,21 @@ mwi <- mwi[mwi$source !='ITTA-Genetic-Camila',]
 
 length(unique(mwi_ge$ID))
 sort(unique(mwi_ge$variety))
-vr <- c("CHECK 1","CHECK 2")
-mwi_ge <- mwi_ge[mwi_ge$variety %in% vr,]
+un_loc <- unique(mwi_ge$ID)
+le <- list()
+
+for(lc in 1:length(un_loc)){
+  ll <- mwi_ge[mwi_ge$ID==un_loc[lc],]
+  sm <- summary(ll$yield)[3]
+  sq <- summary(ll$yield)[5]
+  ll2 <- ll[ll$yield > sm & ll$yield <sq,]
+  m <- mean(ll2$yield)
+  ll2 <- ll2[1,]
+  ll2$yield <- m
+  le[[lc]] <- ll2
+}
+
+mwi_ge <- do.call(rbind,le)
 
 mwi <- rbind(mwi_ge,mwi)
 # Remove outliers by nutrient response treat
@@ -218,9 +269,21 @@ mli <- mli[mli$source !='ITTA-Genetic-Camila',]
 
 length(unique(mli_ge$ID))
 sort(unique(mli_ge$variety))
-vr <- c("Local check","Local Check","LOCAL CHECK 1","LOCAL CHECK 2",
-        "Check","CHECK","Check 1","CHECK 1","Check 2","CHECK 2")
-mli_ge <- mli_ge[mli_ge$variety %in% vr,]
+un_loc <- unique(mli_ge$ID)
+le <- list()
+
+for(lc in 1:length(un_loc)){
+  ll <- mli_ge[mli_ge$ID==un_loc[lc],]
+  sm <- summary(ll$yield)[3]
+  sq <- summary(ll$yield)[5]
+  ll2 <- ll[ll$yield > sm & ll$yield <sq,]
+  m <- mean(ll2$yield)
+  ll2 <- ll2[1,]
+  ll2$yield <- m
+  le[[lc]] <- ll2
+}
+
+mli_ge <- do.call(rbind,le)
 
 mli <- rbind(mli_ge,mli)
 # Remove outliers by nutrient response treat
@@ -255,8 +318,21 @@ moz <- moz[moz$source !='ITTA-Genetic-Camila',]
 
 length(unique(moz_ge$ID))
 sort(unique(moz_ge$variety))
-vr <- c("Check")
-moz_ge <- moz_ge[moz_ge$variety %in% vr,]
+un_loc <- unique(moz_ge$ID)
+le <- list()
+
+for(lc in 1:length(un_loc)){
+  ll <- moz_ge[moz_ge$ID==un_loc[lc],]
+  sm <- summary(ll$yield)[3]
+  sq <- summary(ll$yield)[5]
+  ll2 <- ll[ll$yield > sm & ll$yield <sq,]
+  m <- mean(ll2$yield)
+  ll2 <- ll2[1,]
+  ll2$yield <- m
+  le[[lc]] <- ll2
+}
+
+moz_ge <- do.call(rbind,le)
 
 moz <- rbind(moz_ge,moz)
 # Remove outliers by nutrient response treat
@@ -286,15 +362,21 @@ nga <- nga[nga$source !='ITTA-Genetic-Camila',]
 
 length(unique(nga_ge$ID))
 v <- sort(unique(nga_ge$variety))
-vr <- c("Check","CHECK","Check - K9901","Check 1","CHECK 1","Check 1 - TZEI 16 x TZEI 8",                    
-        "Check 1 - TZEI 5 x TZEI 60","Check 2","CHECK 2","Local Check","Local Check-",                                  
-        "Local Check - 2009 TZEE-OR2","Local Check - 2009 TZEE-OR2 STR",               
-        "Local Check - TZE-Y DT STR C4 x TZEI 11","Local Check - TZE-Y DT STR C4 x TZEI 17",       
-        "Local Check - TZE-Y Pop DT STR C4 x TZEI 17","Local Check - TZE-Y POP DT STR C4 x TZEI 17",   
-        "Local Check - TZEE-W POP STR C5 x TZEEI 29","Local Check - TZEI 11 x TZE-Y DT STR C4",       
-        "Local Check -2008 TZEE-W Pop STR F1",           
-        "Local Check  - TZE-Y Pop DT STR C4 x TZEI 17","LOCAL CHECK 1","LOCAL CHECK 2")
-nga_ge <- nga_ge[nga_ge$variety %in% vr,]
+un_loc <- unique(nga_ge$ID)
+le <- list()
+
+for(lc in 1:length(un_loc)){
+  ll <- nga_ge[nga_ge$ID==un_loc[lc],]
+  sm <- summary(ll$yield)[3]
+  sq <- summary(ll$yield)[5]
+  ll2 <- ll[ll$yield > sm & ll$yield <sq,]
+  m <- mean(ll2$yield)
+  ll2 <- ll2[1,]
+  ll2$yield <- m
+  le[[lc]] <- ll2
+}
+
+nga_ge <- do.call(rbind,le)
 
 nga <- rbind(nga_ge,nga)
 # Remove outliers by nutrient response treat
@@ -376,8 +458,21 @@ tza <- tza[tza$source !='ITTA-Genetic-Camila',]
 
 length(unique(tza_ge$ID))
 sort(unique(tza_ge$variety))
-vr <- c("CHECK 1","CHECK 2","LOCAL CHECK 1","LOCAL CHECK 2")
-tza_ge <- tza_ge[tza_ge$variety %in% vr,]
+un_loc <- unique(tza_ge$ID)
+le <- list()
+
+for(lc in 1:length(un_loc)){
+  ll <- tza_ge[tza_ge$ID==un_loc[lc],]
+  sm <- summary(ll$yield)[3]
+  sq <- summary(ll$yield)[5]
+  ll2 <- ll[ll$yield > sm & ll$yield <sq,]
+  m <- mean(ll2$yield)
+  ll2 <- ll2[1,]
+  ll2$yield <- m
+  le[[lc]] <- ll2
+}
+
+tza_ge <- do.call(rbind,le)
 
 tza <- rbind(tza_ge,tza)
 # Remove outliers by nutrient response treat
@@ -412,8 +507,21 @@ zmb <- zmb[zmb$source !='ITTA-Genetic-Camila',]
 
 length(unique(zmb_ge$ID))
 sort(unique(zmb_ge$variety))
-vr <- c("Check","CHECK 1","CHECK 2","Local Check - Pool 16","LOCAL CHECK 1","LOCAL CHECK 2")
-zmb_ge <- zmb_ge[zmb_ge$variety %in% vr,]
+un_loc <- unique(gha_ge$ID)
+le <- list()
+
+for(lc in 1:length(un_loc)){
+  ll <- zmb_ge[zmb_ge$ID==un_loc[lc],]
+  sm <- summary(ll$yield)[3]
+  sq <- summary(ll$yield)[5]
+  ll2 <- ll[ll$yield > sm & ll$yield <sq,]
+  m <- mean(ll2$yield)
+  ll2 <- ll2[1,]
+  ll2$yield <- m
+  le[[lc]] <- ll2
+}
+
+zmb_ge <- do.call(rbind,le)
 
 zmb <- rbind(zmb_ge,zmb)
 # Remove outliers by nutrient response treat
@@ -446,8 +554,21 @@ zwe <- zwe[zwe$source !='ITTA-Genetic-Camila',]
 
 length(unique(zwe_ge$ID))
 sort(unique(zwe_ge$variety))
-vr <- c("Check","CHECK 1","CHECK 2","LOCAL CHECK 1","LOCAL CHECK 2")
-zwe_ge <- zwe_ge[zwe_ge$variety %in% vr,]
+un_loc <- unique(zwe_ge$ID)
+le <- list()
+
+for(lc in 1:length(un_loc)){
+  ll <- zwe_ge[zwe_ge$ID==un_loc[lc],]
+  sm <- summary(ll$yield)[3]
+  sq <- summary(ll$yield)[5]
+  ll2 <- ll[ll$yield > sm & ll$yield <sq,]
+  m <- mean(ll2$yield)
+  ll2 <- ll2[1,]
+  ll2$yield <- m
+  le[[lc]] <- ll2
+}
+
+zwe_ge <- do.call(rbind,le)
 
 zwe <- rbind(zwe_ge,zwe)
 # Remove outliers by nutrient response treat

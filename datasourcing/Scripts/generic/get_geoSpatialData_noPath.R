@@ -601,7 +601,7 @@ extract_geoSpatialPointData <- function(country, useCaseName, Crop,
   }else{
   #  inputData <- readRDS(paste("~/agwise-datacuration/dataops/datacuration/Data/useCase_",country, "_", useCaseName,"/", Crop, "/result/compiled_fieldData.RDS", sep=""))
     inputData <- readRDS("~/agwise-datasourcing/dataops/datasourcing/Data/useCase_Africa_Maize/result/fieldData/4_aggregated_fieldData.rds")
-    colnames(inputData) <- c('dataset_id', 'country', 'site', 'lon', 'lat', 'on_farm', 'variety', 'nut_respone_eval', 'yield', 'N_fertilizer', 'N_splits', 'P_fertilizer', 'K_fertilizer', 'year', 'plantingDate', 'harvestDate', 'dif', 'source', 'ID')
+
      }
   
 
