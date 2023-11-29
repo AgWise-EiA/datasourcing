@@ -35,6 +35,7 @@ Paths_Vars <- function(country, useCaseName, Crop, inputData = NULL, Planting_mo
   
   varsbasePath <- "/home/jovyan/agwise-datasourcing/dataops/datasourcing/Data/Global_GeoData/Landing/"
   dataPath <- "~/agwise-datacuration/dataops/datacuration/Data/useCase_"
+  OutputPath <- "~/agwise-datasourcing/dataops/datasourcing/Data/useCase_"
   
   readLayers_soil_isric <- NULL
   shapefileHC <- NULL
@@ -60,7 +61,7 @@ Paths_Vars <- function(country, useCaseName, Crop, inputData = NULL, Planting_mo
     shapefileHC <- st_read(paste0(varsbasePath, "Soil/HC27/HC27 CLASSES.shp"), quiet= TRUE)%>%
       st_make_valid()
     if(is.null(pathOut)){
-      pathOut <- paste(dataPath, country, "_", useCaseName,"/", Crop, "/result/geo_4cropModel/", sep="")
+      pathOut <- paste(OutputPath, country, "_", useCaseName,"/", Crop, "/result/geo_4cropModel/", sep="")
     }
   }else{
     listRaster_soil <-list.files(path=paste0(varsbasePath, "Soil/iSDA"), pattern=".tif$")
@@ -68,7 +69,7 @@ Paths_Vars <- function(country, useCaseName, Crop, inputData = NULL, Planting_mo
     listRaster_soil_isric <-list.files(path=paste0(varsbasePath, "Soil/soilGrids"), pattern=".tif$")
     readLayers_soil_isric <- terra::rast(paste(paste0(varsbasePath, "Soil/soilGrids"), listRaster_soil_isric, sep="/"))
     if(is.null(pathOut)){
-      pathOut <- paste(dataPath, country, "_", useCaseName,"/", Crop, "/result/geo_4ML/", sep="")
+      pathOut <- paste(OutputPath, country, "_", useCaseName,"/", Crop, "/result/geo_4ML/", sep="")
     }
   }
   return(list(inputData, listRasterRF, listRasterTmax, listRasterTMin, listRasterRH,listRasterSR, listRasterWS, readLayers_soil, readLayers_soil_isric, shapefileHC, pathOut))
@@ -77,6 +78,8 @@ Paths_Vars <- function(country, useCaseName, Crop, inputData = NULL, Planting_mo
 
 
 #################################################################################################################
+# DATA SOURCE https://data.chc.ucsb.edu/products/CHIRPS-2.0/ for rainfall
+# https://cds.climate.copernicus.eu/cdsapp#!/dataset/sis-agrometeorological-indicators?tab=form fr AgEra 5 data
 # Is a helper function for extract_geoSpatialPointData. Extract geo-spatial data with time dimension 
 #' @description this functions loops through all .nc files (~30 - 40 years) for rain. temperature, solar radiation, wind speed and relative humidity. 
 #' Planting_month_date should be set to one month prior to the earliest possible planting month and date so that data is available to-set initial conditions while running crop model. 
@@ -127,14 +130,13 @@ get_weather_pointData <- function(country, inputData,  AOI=FALSE, Planting_month
     Planting_month_date <- as.Date(paste0(py, "-",Planting_month_date)) ## the year is only a place holder to set planting month 1 month earlier
     Planting_month_date <- Planting_month_date %m-% months(1)
     
-    ## set harvest date one moth later to the make sure there is enough weather data until maturity 
-    Harvest_month_date <- as.Date(paste0(hy, "-",Harvest_month_date)) ## the year is only a place holder to set harvest month 1 month later
-    Harvest_month_date <- Harvest_month_date %m+% months(1)
-    
+    ## set harvest date one month later to the make sure there is enough weather data until maturity 
+    Harvest_month_date <- as.Date(paste0(hy, "-",Harvest_month_date)) ## the year is only a place holder 
+   
     ## if multiple planting dates are to be tested, adjust the Harvest_month_date to extract weather data for the later planting dates.  
-    if(plantingWindow > 1 & plantingWindow <= 5){
+    if(plantingWindow > 1 & plantingWindow < 5){
       Harvest_month_date <- Harvest_month_date %m+% months(1)
-    }else if(plantingWindow > 5 & plantingWindow <=8){
+    }else if(plantingWindow >= 5 & plantingWindow <=8){
       Harvest_month_date <- Harvest_month_date %m+% months(2)
     }
   }
@@ -353,9 +355,13 @@ get_weather_pointData <- function(country, inputData,  AOI=FALSE, Planting_month
 }
 
 
+
+
 ################################################################################
-
-
+# https://rdrr.io/cran/geodata/man/soil_grids.html
+# https://rdrr.io/cran/geodata/man/soil_af.html
+# https://rdrr.io/cran/geodata/man/soil_af_isda.html
+# https://rdrr.io/cran/geodata/man/elevation.html DEm data from SRTM
 #' @description Is a helper function for extract_geoSpatialPointData. Extract geo-spatial data with no temporal dimension, i,e,. soil properties and topography variables
 #' 
 #' @param country country name to be sued to extract the first two level of administrative units to attach to the data. 
@@ -523,19 +529,19 @@ get_soil_DEM_pointData <- function(country, inputData, soilProfile = FALSE, path
   pointDataSoil <- cbind(unique(inputData2[, c("country", "NAME_1", "NAME_2", "lon", "lat")]), pointDataSoil)
 
   ## 5. Extract DEM data: at lon and lat at steps of 5 degree
-  countryExt <- terra::ext(countryShp[countryShp$NAME_2 %in% unique(inputData2$NAME_2)])
- 
-  lons <- seq(countryExt[1]-1, countryExt[2]+1, 5)
-  lats <- seq(countryExt[3]-1, countryExt[4]+1, 5)
-  griddem <- expand_grid(lons, lats)
-
+    countryExt <- terra::ext(countryShp[countryShp$NAME_2 %in% unique(inputData2$NAME_2)])
+    
+    lons <- seq(countryExt[1]-1, countryExt[2]+1, 5)
+    lats <- seq(countryExt[3]-1, countryExt[4]+1, 5)
+    griddem <- expand_grid(lons, lats)
+    
     # ## if the extent is not fully within a distince of 5 degrees this does not work, otherwise this would have been better script
     # listRaster_dem1 <-geodata::elevation_3s(lon=countryExt[1], lat=countryExt[3], path=pathOut) #xmin - ymin
     # listRaster_dem2 <-geodata::elevation_3s(lon=countryExt[1], lat=countryExt[4], path=pathOut) #xmin - ymax
     # listRaster_dem3 <-geodata::elevation_3s(lon=countryExt[2], lat=countryExt[3], path=pathOut) #xmax - ymin
     # listRaster_dem4 <-geodata::elevation_3s(lon=countryExt[2], lat=countryExt[4], path=pathOut) #xmax - ymax
     # listRaster_dem <- terra::mosaic(listRaster_dem1, listRaster_dem2, listRaster_dem3, listRaster_dem4, fun='mean')
-
+    
     dems <- c()
     listRaster_demx <- NULL
     for(g in 1:nrow(griddem)){
@@ -544,7 +550,6 @@ get_soil_DEM_pointData <- function(country, inputData, soilProfile = FALSE, path
     }
     
     if(!is.null(dems)){
-      
       ## if mosaic works with list as dems is here, the next step is not necessary
       if(length(dems) == 1){
         listRaster_dem <- dems[[1]]
@@ -559,8 +564,6 @@ get_soil_DEM_pointData <- function(country, inputData, soilProfile = FALSE, path
                                         dems[[9]], dems[[10]], dems[[11]],dems[[12]],
                                         fun='mean')
       }
-      
-      
       
       dem <- terra::crop(listRaster_dem, countryShp[countryShp$NAME_2 %in% unique(inputData2$NAME_2)])
       slope <- terra::terrain(dem, v = 'slope', unit = 'degrees')
@@ -581,7 +584,7 @@ get_soil_DEM_pointData <- function(country, inputData, soilProfile = FALSE, path
     }else{
       pointDataSoil = pointDataSoil
     }
-    
+  
     
   ## 6. Extract harvest choice soil class and drainage rate (just for profile =TRUE)
   if(soilProfile == TRUE){
@@ -678,6 +681,8 @@ extract_geoSpatialPointData <- function(country, useCaseName, Crop,  inputData =
       }else if(varName == "windSpeed"){
         listRaster <- listRasterWS
       }
+
+      listRaster <- listRaster[grep("2000", listRaster):grep("2022", listRaster)] 
       
       vData <- get_weather_pointData(inputData = inputData, 
                                      country = country, AOI=AOI, Planting_month_date=Planting_month_date, plantingWindow, 
@@ -685,8 +690,9 @@ extract_geoSpatialPointData <- function(country, useCaseName, Crop,  inputData =
       
       w_name <- ifelse(AOI == TRUE, paste(varName, "_Season_", season, "_PointData_AOI.RDS", sep=""), paste(varName, "_PointData_trial.RDS", sep=""))
       saveRDS(vData, paste(pathOut, w_name, sep="/"))
-      print(paste(varName, " is done", sep=""))
-      wData[[i]] <-  vData
+      print(paste("Data sourcing for ", varName, " is done", sep=""))
+      # wData[[i]] <-  vData
+      rm(vData)
       i=i+1
     }
   }
@@ -713,14 +719,14 @@ extract_geoSpatialPointData <- function(country, useCaseName, Crop,  inputData =
   }
     
   
-  if(weatherData == TRUE & soilData == TRUE & season == 1){
-    wData[[7]] <- sData
-    return(wData)
-  }else if (weatherData == TRUE & soilData == FALSE){
-    return(wData)
-  }else if(weatherData == FALSE & soilData == TRUE & season == 1) {
-    return(sData)
-  }
+  # if(weatherData == TRUE & soilData == TRUE & season == 1){
+  #   wData[[7]] <- sData
+  #   return(wData)
+  # }else if (weatherData == TRUE & soilData == FALSE){
+  #   return(wData)
+  # }else if(weatherData == FALSE & soilData == TRUE & season == 1) {
+  #   return(sData)
+  # }
   
 }
 

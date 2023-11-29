@@ -15,7 +15,7 @@
 #' @examples getCoordinates(country = "Zambia", useCaseName = "Solidaridad", Crop = "Soybean", resltn = 0.05, provinces=NULL, district = "Katete")
 getCoordinates <- function(country, useCaseName, Crop, resltn, provinces=NULL, district =NULL){ 
   
-  pathOut <- paste("~/agwise-datasourcing/dataops/datasourcing/Data/useCase_", country, "_", useCaseName,"/", Crop, "/raw/", sep="")
+  pathOut <- paste("~/agwise-datacuration/dataops/datacuration/Data/useCase_", country, "_", useCaseName,"/", Crop, "/result/", sep="")
   
   if (!dir.exists(pathOut)){
     dir.create(file.path(pathOut), recursive = TRUE)
@@ -36,6 +36,9 @@ getCoordinates <- function(country, useCaseName, Crop, resltn, provinces=NULL, d
   }else{
     level3 <- countrySpVec
   }
+  
+  plot(countrySpVec)
+  plot(level3, add=TRUE, col="green")
   
 
   xmin <- ext(level3)[1]
@@ -77,7 +80,7 @@ getCoordinates <- function(country, useCaseName, Crop, resltn, provinces=NULL, d
   }
 
   
- saveRDS(State_LGA, paste("~/agwise-datacuration/dataops/datacuration/Data/useCase_", country, "_",useCaseName, "/", Crop, "/result/AOI_GPS.RDS", sep=""))
+ saveRDS(State_LGA, paste(pathOut, "AOI_GPS.RDS", sep=""))
   
   return(State_LGA)
 }
