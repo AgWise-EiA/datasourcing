@@ -55,14 +55,14 @@ getCoordinates <- function(country, useCaseName, Crop, resltn, provinces=NULL, d
   if(resltn == 0.05){
     rect_coord$x <- floor(rect_coord$x*10)/10 + ifelse(rect_coord$x - (floor(rect_coord$x*10)/10) < 0.05, 0.025, 0.075)
     rect_coord$y <- floor(rect_coord$y*10)/10 + ifelse(abs(rect_coord$y)-(floor(abs(rect_coord$y)*10)/10) < 0.05, 0.025, 0.075)
-    rect_coord <- unique(rect_coord[,c("x", "y")])
   }
+    rect_coord <- unique(rect_coord[,c("x", "y")])
   # }else if (resltn == 0.01) {
   #   rect_coord$x <- floor(rect_coord$x*100)/100
-  #   rect_coord$y <- floor(rect_coord$y*100)/100 
-  #   rect_coord <- unique(rect_coord[,c("x", "y")]) 
+  #   rect_coord$y <- floor(rect_coord$y*100)/100
+  #   rect_coord <- unique(rect_coord[,c("x", "y")])
   # }else{
-  #  names(rect_coord) <- c("x", "y") 
+  #  names(rect_coord) <- c("x", "y")
   # }
 
   
@@ -76,17 +76,17 @@ getCoordinates <- function(country, useCaseName, Crop, resltn, provinces=NULL, d
   if(!is.null(provinces)){
     State_LGA <- droplevels(State_LGA[State_LGA$NAME_1 %in% provinces, ])
   }else if (!is.null(district)){
-    State_LGA <- droplevels(State_LGA[State_LGA$NAME_2 %in% district, ])
-  }
+    State_LGA <- droplevels(State_LGA[State_LGA$NAME_2 %in% district, ])}
 
+  
+  State_LGA <- droplevels(State_LGA[!is.na(State_LGA$NAME_2), ])
   
  saveRDS(State_LGA, paste(pathOut, "AOI_GPS.RDS", sep=""))
   
   return(State_LGA)
 }
 
-
-
+# RW <- getCoordinates(country = "Rwanda", useCaseName = "RAB", Crop = "Maize", resltn = 0.01, provinces=NULL, district = NULL)
 # ma <- getCoordinates(country = "Malawi", useCaseName = "Solidaridad", Crop = "Soybean", resltn = 0.05, provinces="Kasungu", district = NULL)
 # zm <- getCoordinates(country = "Zambia", useCaseName = "Solidaridad", Crop = "Soybean", resltn = 0.05, provinces=NULL, district = "Katete")
 # mz <- getCoordinates(country = "Mozambique", useCaseName = "Solidaridad", Crop = "Soybean", resltn = 0.05, provinces=NULL, district = "Angónia")

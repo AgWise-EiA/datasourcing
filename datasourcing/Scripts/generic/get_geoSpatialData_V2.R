@@ -48,7 +48,7 @@ Paths_Vars <- function(country, useCaseName, Crop, inputData = NULL, Planting_mo
     }
   }
   
-    listRasterRF <-list.files(path=paste0(varsbasePath, "Rainfall/chirps"), pattern=".nc$", full.names = TRUE)
+    listRasterRF <-list.files(path=paste0(varsbasePath, "Rainfall/chirps"), pattern=".nc$", full.names = TRUE)[-c(1:2)]
     listRasterTmax <-list.files(path=paste0(varsbasePath, "TemperatureMax/AgEra"), pattern=".nc$", full.names = TRUE)
     listRasterTMin <-list.files(path=paste0(varsbasePath, "TemperatureMin/AgEra"), pattern=".nc$", full.names = TRUE)
     listRasterRH <-list.files(path=paste0(varsbasePath, "RelativeHumidity/AgEra"), pattern=".nc$", full.names = TRUE)
@@ -139,16 +139,16 @@ get_weather_pointData <- function(country, inputData,  AOI=FALSE, Planting_month
     }else if(plantingWindow >= 5 & plantingWindow <=8){
       Harvest_month_date <- Harvest_month_date %m+% months(2)
     }
-  }
-
-  ## 1. read all the raster files 
-
-  # if(AOI == TRUE & varName == "Rainfall"){
-  #   listRaster <- listRaster[20:42]
-  # }else if (AOI == TRUE){
-  #   listRaster <- listRaster[22:44]
   # }
-  # 
+
+  # 1. read all the raster files
+
+   # if(AOI == TRUE & varName == "Rainfall"){
+   #   listRaster <- listRaster[20:42]
+   # }else if (AOI == TRUE){
+   #   listRaster <- listRaster[22:44]
+   # }
+   # 
 
   
   
@@ -353,7 +353,7 @@ get_weather_pointData <- function(country, inputData,  AOI=FALSE, Planting_month
   
   return(data_points)
 }
-
+}
 
 
 
@@ -529,61 +529,63 @@ get_soil_DEM_pointData <- function(country, inputData, soilProfile = FALSE, path
   pointDataSoil <- cbind(unique(inputData2[, c("country", "NAME_1", "NAME_2", "lon", "lat")]), pointDataSoil)
 
   ## 5. Extract DEM data: at lon and lat at steps of 5 degree
-    countryExt <- terra::ext(countryShp[countryShp$NAME_2 %in% unique(inputData2$NAME_2)])
-    
-    lons <- seq(countryExt[1]-1, countryExt[2]+1, 5)
-    lats <- seq(countryExt[3]-1, countryExt[4]+1, 5)
-    griddem <- expand_grid(lons, lats)
-    
-    # ## if the extent is not fully within a distince of 5 degrees this does not work, otherwise this would have been better script
-    # listRaster_dem1 <-geodata::elevation_3s(lon=countryExt[1], lat=countryExt[3], path=pathOut) #xmin - ymin
-    # listRaster_dem2 <-geodata::elevation_3s(lon=countryExt[1], lat=countryExt[4], path=pathOut) #xmin - ymax
-    # listRaster_dem3 <-geodata::elevation_3s(lon=countryExt[2], lat=countryExt[3], path=pathOut) #xmax - ymin
-    # listRaster_dem4 <-geodata::elevation_3s(lon=countryExt[2], lat=countryExt[4], path=pathOut) #xmax - ymax
+  # countryExt <- terra::ext(countryShp)
+                           
+    # countryExt <- terra::ext(countryShp[countryShp$NAME_2 %in% unique(inputData2$NAME_2)])
+    # 
+    # lons <- seq(countryExt[1]-1, countryExt[2]+1, 5)
+    # lats <- seq(countryExt[3]-1, countryExt[4]+1, 5)
+    # griddem <- expand_grid(lons, lats)
+    # 
+    # # ## if the extent is not fully within a distince of 5 degrees this does not work, otherwise this would have been better script
+    # listRaster_dem1 <-geodata::elevation_3s(lon=countryExt[1], lat=countryExt[3], path=getwd()) #xmin - ymin
+    # listRaster_dem2 <-geodata::elevation_3s(lon=countryExt[1], lat=countryExt[4], path=getwd()) #xmin - ymax
+    # listRaster_dem3 <-geodata::elevation_3s(lon=countryExt[2], lat=countryExt[3], path=getwd()) #xmax - ymin
+    # listRaster_dem4 <-geodata::elevation_3s(lon=countryExt[2], lat=countryExt[4], path=getwd()) #xmax - ymax
     # listRaster_dem <- terra::mosaic(listRaster_dem1, listRaster_dem2, listRaster_dem3, listRaster_dem4, fun='mean')
     
-    dems <- c()
-    listRaster_demx <- NULL
-    for(g in 1:nrow(griddem)){
-      listRaster_demx <- tryCatch(geodata::elevation_3s(lon=griddem$lons[g], lat=griddem$lats[g], path=pathOut),error=function(e){})
-      dems <- c(dems, listRaster_demx)
-    }
-    
-    if(!is.null(dems)){
-      ## if mosaic works with list as dems is here, the next step is not necessary
-      if(length(dems) == 1){
-        listRaster_dem <- dems[[1]]
-      }else if(length(dems) > 1 & length(dems) < 12){
-        for (k in c((length(dems)+1):12)){
-          dems[[k]] <- dems[[1]] 
-        }
-        ## as it is not possible to define the number of tiles before hand, as assumption is made to have 12 tiles and when that is not the case the first time will be 
-        ## duplicated and the mean of it will be take which should not affect the result
-        listRaster_dem <- terra::mosaic(dems[[1]], dems[[2]],dems[[3]],dems[[4]],
-                                        dems[[5]], dems[[6]], dems[[7]],dems[[8]],
-                                        dems[[9]], dems[[10]], dems[[11]],dems[[12]],
-                                        fun='mean')
-      }
-      
-      dem <- terra::crop(listRaster_dem, countryShp[countryShp$NAME_2 %in% unique(inputData2$NAME_2)])
-      slope <- terra::terrain(dem, v = 'slope', unit = 'degrees')
-      tpi <- terra::terrain(dem, v = 'TPI')
-      tri <- terra::terrain(dem, v = 'TRI')
-      
-      ### ideally these four dem layers will be made to a list so that point extraction will be done at once, bu CG Labs capacity does not allow that ...
-      topoLayer <- terra::rast(list(dem, slope, tpi, tri))
-      datatopo <- terra::extract(topoLayer, gpsPoints, method='simple', cells=FALSE)
-      datatopo <- subset(datatopo, select=-c(ID))
-      topoData <- cbind(inputData2[, c("lon", "lat")], datatopo)
-      names(topoData) <- c("lon", "lat" ,"altitude", "slope", "TPI", "TRI")
-      
-      
-      pointDataSoil <- unique(merge(pointDataSoil, topoData, by=c("lon", "lat")))
-      
-      
-    }else{
-      pointDataSoil = pointDataSoil
-    }
+    # dems <- c()
+    # listRaster_demx <- NULL
+    # for(g in 1:nrow(griddem)){
+    #   listRaster_demx <- tryCatch(geodata::elevation_3s(lon=griddem$lons[g], lat=griddem$lats[g], path=pathOut),error=function(e){})
+    #   dems <- c(dems, listRaster_demx)
+    # }
+    # 
+    # if(!is.null(dems)){
+    #   ## if mosaic works with list as dems is here, the next step is not necessary
+    #   if(length(dems) == 1){
+    #     listRaster_dem <- dems[[1]]
+    #   }else if(length(dems) > 1 & length(dems) < 12){
+    #     for (k in c((length(dems)+1):12)){
+    #       dems[[k]] <- dems[[1]] 
+    #     }
+    #     ## as it is not possible to define the number of tiles before hand, as assumption is made to have 12 tiles and when that is not the case the first time will be 
+    #     ## duplicated and the mean of it will be take which should not affect the result
+    #     listRaster_dem <- terra::mosaic(dems[[1]], dems[[2]],dems[[3]],dems[[4]],
+    #                                     dems[[5]], dems[[6]], dems[[7]],dems[[8]],
+    #                                     dems[[9]], dems[[10]], dems[[11]],dems[[12]],
+    #                                     fun='mean')
+    #   }
+    #   
+    #   dem <- terra::crop(listRaster_dem, countryShp[countryShp$NAME_2 %in% unique(inputData2$NAME_2)])
+    #   slope <- terra::terrain(dem, v = 'slope', unit = 'degrees')
+    #   tpi <- terra::terrain(dem, v = 'TPI')
+    #   tri <- terra::terrain(dem, v = 'TRI')
+    #   
+    #   ### ideally these four dem layers will be made to a list so that point extraction will be done at once, bu CG Labs capacity does not allow that ...
+    #   topoLayer <- terra::rast(list(dem, slope, tpi, tri))
+    #   datatopo <- terra::extract(topoLayer, gpsPoints, method='simple', cells=FALSE)
+    #   datatopo <- subset(datatopo, select=-c(ID))
+    #   topoData <- cbind(inputData2[, c("lon", "lat")], datatopo)
+    #   names(topoData) <- c("lon", "lat" ,"altitude", "slope", "TPI", "TRI")
+    #   
+    #   
+    #   pointDataSoil <- unique(merge(pointDataSoil, topoData, by=c("lon", "lat")))
+    #   
+    #   
+    # }else{
+    #   pointDataSoil = pointDataSoil
+    # }
   
     
   ## 6. Extract harvest choice soil class and drainage rate (just for profile =TRUE)
@@ -721,7 +723,7 @@ extract_geoSpatialPointData <- function(country, useCaseName, Crop,  inputData =
   
   # if(weatherData == TRUE & soilData == TRUE & season == 1){
   #   wData[[7]] <- sData
-  #   return(wData)
+  return(wData)
   # }else if (weatherData == TRUE & soilData == FALSE){
   #   return(wData)
   # }else if(weatherData == FALSE & soilData == TRUE & season == 1) {
@@ -767,52 +769,52 @@ summarize_pointdata <- function(rastLayerRF_1=NULL, rastLayerRF_2=NULL,
     PlHvD_WS <- terra::rast(rastLayerWS_1, lyrs=c(pl_j:hv_j)) 
     
   }else{
-    rastRF_i1 <- terra::rast(rastLayerRF_1, lyrs=c(pl_j:terra::nlyr(terra::rast(rastLayerRF_1))))
-    rastRF_i2 <- terra::rast(rastLayerRF_2, lyrs=c(1:hv_j))
+    rastRF_i1 <- if(class(terra::rast(rastLayerRF_1))[1]=='SpatRaster'){terra::rast(rastLayerRF_1, lyrs=c(pl_j:terra::nlyr(terra::rast(rastLayerRF_1))))}
+    rastRF_i2 <- if(class(terra::rast(rastLayerRF_2))[1]=='SpatRaster'){terra::rast(rastLayerRF_2, lyrs=c(1:hv_j))}
     PlHvD_RF <- c(rastRF_i1, rastRF_i2)
     
-    rastTmax_i1 <- terra::rast(rastLayerTmax_1, lyrs=c(pl_j:terra::nlyr(terra::rast(rastLayerTmax_1))))
-    rastTmax_i2 <- terra::rast(rastLayerTmax_2, lyrs=c(1:hv_j))
+    rastTmax_i1 <- if(class(terra::rast(rastLayerTmax_1))[1]=='SpatRaster'){terra::rast(rastLayerTmax_1, lyrs=c(pl_j:terra::nlyr(terra::rast(rastLayerTmax_1))))}
+    rastTmax_i2 <- if(class(terra::rast(rastLayerTmax_2))[1]=='SpatRaster'){terra::rast(rastLayerTmax_2, lyrs=c(1:hv_j))}
     PlHvD_Tmax <- c(rastTmax_i1, rastTmax_i2)
 
-    rastTmin_i1 <- terra::rast(rastLayerTmin_1, lyrs=c(pl_j:terra::nlyr(terra::rast(rastLayerTmin_1))))
-    rastTmin_i2 <- terra::rast(rastLayerTmin_2, lyrs=c(1:hv_j))
+    rastTmin_i1 <- if(class(terra::rast(rastLayerTmin_1))[1]=='SpatRaster'){terra::rast(rastLayerTmin_1, lyrs=c(pl_j:terra::nlyr(terra::rast(rastLayerTmin_1))))}
+    rastTmin_i2 <- if(class(terra::rast(rastLayerTmin_2))[1]=='SpatRaster'){terra::rast(rastLayerTmin_2, lyrs=c(1:hv_j))}
     PlHvD_Tmin <- c(rastTmin_i1, rastTmin_i2)
     
-    rastRH_i1 <- terra::rast(rastLayerRH_1, lyrs=c(pl_j:terra::nlyr(terra::rast(rastLayerRH_1))))
-    rastRH_i2 <- terra::rast(rastLayerRH_2, lyrs=c(1:hv_j))
+    rastRH_i1 <- if(class(terra::rast(rastLayerRH_1))[1]=='SpatRaster'){terra::rast(rastLayerRH_1, lyrs=c(pl_j:terra::nlyr(terra::rast(rastLayerRH_1))))}
+    rastRH_i2 <- if(class(terra::rast(rastLayerRH_2))[1]=='SpatRaster'){terra::rast(rastLayerRH_2, lyrs=c(1:hv_j))}
     PlHvD_RH <- c(rastRH_i1, rastRH_i2)
     
-    rastSR_i1 <- terra::rast(rastLayerSR_1, lyrs=c(pl_j:terra::nlyr(terra::rast(rastLayerSR_1))))
-    rastSR_i2 <- terra::rast(rastLayerSR_2, lyrs=c(1:hv_j))
+    rastSR_i1 <- if(class(terra::rast(rastLayerSR_1))[1]=='SpatRaster'){terra::rast(rastLayerSR_1, lyrs=c(pl_j:terra::nlyr(terra::rast(rastLayerSR_1))))}
+    rastSR_i2 <- if(class(terra::rast(rastLayerSR_2))[1]=='SpatRaster'){terra::rast(rastLayerSR_2, lyrs=c(1:hv_j))}
     PlHvD_SR <- c(rastSR_i1, rastSR_i2)
     
-    rastWS_i1 <- terra::rast(rastLayerWS_1, lyrs=c(pl_j:terra::nlyr(terra::rast(rastLayerWS_1))))
-    rastWS_i2 <- terra::rast(rastLayerWS_2, lyrs=c(1:hv_j))
+    rastWS_i1 <- if(class(terra::rast(rastLayerWS_1))[1]=='SpatRaster'){terra::rast(rastLayerWS_1, lyrs=c(pl_j:terra::nlyr(terra::rast(rastLayerWS_1))))}
+    rastWS_i2 <- if(class(terra::rast(rastLayerWS_2))[1]=='SpatRaster'){terra::rast(rastLayerWS_2, lyrs=c(1:hv_j))}
     PlHvD_WS <- c(rastWS_i1, rastWS_i2)
   }
   
   xy <- gpsdata[, c("longitude", "latitude")]
   
-  RFi <- terra::extract(PlHvD_RF, xy, method='simple', cells=FALSE)
+  RFi <- if(class(PlHvD_RF) == "SpatRaster"){terra::extract(PlHvD_RF, xy, method='simple', cells=FALSE)}
   RFi <- RFi[,-1]
   
-  Tmaxi <- terra::extract(PlHvD_Tmax, xy, method='simple', cells=FALSE)
+  Tmaxi <- if(class(PlHvD_Tmax) == "SpatRaster"){terra::extract(PlHvD_Tmax, xy, method='simple', cells=FALSE)}
   Tmaxi <- Tmaxi[,-1]
   Tmaxi <- Tmaxi-274
   
-  Tmini <- terra::extract(PlHvD_Tmin, xy, method='simple', cells=FALSE)
+  Tmini <- if(class(PlHvD_Tmin) == "SpatRaster"){terra::extract(PlHvD_Tmin, xy, method='simple', cells=FALSE)}
   Tmini <- Tmini[,-1]
   Tmini <- Tmini-274
   
-  RHi <- terra::extract(PlHvD_RH, xy, method='simple', cells=FALSE)
+  RHi <- if(class(PlHvD_RH) == "SpatRaster"){terra::extract(PlHvD_RH, xy, method='simple', cells=FALSE)}
   RHi <- RHi[,-1]
   
-  SRi <- terra::extract(PlHvD_SR, xy, method='simple', cells=FALSE)
+  SRi <- if(class(PlHvD_SR) == "SpatRaster"){terra::extract(PlHvD_SR, xy, method='simple', cells=FALSE)}
   SRi <- SRi[,-1]
   SRi <- SRi/1000000
   
-  WSi <- terra::extract(PlHvD_WS, xy, method='simple', cells=FALSE)
+  WSi <- if(class(PlHvD_WS) == "SpatRaster"){terra::extract(PlHvD_WS, xy, method='simple', cells=FALSE)}
   WSi <- WSi[,-1]
   
 
@@ -840,36 +842,87 @@ summarize_pointdata <- function(rastLayerRF_1=NULL, rastLayerRF_2=NULL,
     msri <- SRi[m,]
     mwsi <- WSi[m,]
     
-    
-    
     mdiv <- unique(c(seq(1, length(mrdi), 30), length(mrdi)))
     
-    mrf <- c()
-    mtmax <- c()
-    mtmin <- c()
-    mrh <- c()
-    msr <- c()
-    mws <- c()
+    mdivq <- length(mrdi)%/%31
+    mdivr <- length(mrdi)%%31
     
-    for (k in 1:(length(mdiv)-1)) {
-      # print(k)
-      if(k == 1){
-        mrf <- c(mrf, sum(mrdi[c(mdiv[k]:mdiv[k+1])]))
-        mtmax <- c(mtmax, mean(as.numeric(mtmaxi[c(mdiv[k]:mdiv[k+1])])))
-        mtmin <- c(mtmin, mean(as.numeric(mtmini[c(mdiv[k]:mdiv[k+1])])))
-        mrh <- c(mrh, mean(as.numeric(mrhi[c(mdiv[k]:mdiv[k+1])])))
-        msr <- c(msr, mean(as.numeric(msri[c(mdiv[k]:mdiv[k+1])])))
-        mws <- c(mws, mean(as.numeric(mwsi[c(mdiv[k]:mdiv[k+1])])))
-      }else{
-        mrf <- c(mrf, sum(mrdi[c((mdiv[k]+1):(mdiv[k+1]))]))
-        mtmax <- c(mtmax, mean(as.numeric(mtmaxi[c((mdiv[k]+1):(mdiv[k+1]))])))
-        mtmin <- c(mtmin, mean(as.numeric(mtmini[c((mdiv[k]+1):(mdiv[k+1]))])))
-        mrh <- c(mrh, mean(as.numeric(mrhi[c((mdiv[k]+1):(mdiv[k+1]))])))
-        msr <- c(msr, mean(as.numeric(msri[c((mdiv[k]+1):(mdiv[k+1]))])))
-        mws <- c(mws, mean(as.numeric(mwsi[c((mdiv[k]+1):(mdiv[k+1]))])))
-      }
+    ##################
+    mrf <- NULL
+    for (q in 1:mdivq){
+      mrf <- c(mrf, sum(mrdi[((q*31)-30):(q*31)]))	
     }
+    # Then add the remainder
+    mrf <- c(mrf, sum(mrdi[(q*31):((q*31)+mdivr)]))
     
+    mtmax <- NULL
+    for (q in 1:mdivq){
+      mtmax <- c(mtmax, mean(as.numeric(mtmaxi[((q*31)-30):(q*31)])))	
+    }
+    # Then add the remainder
+    mtmax <- c(mtmax, mean(as.numeric(mtmaxi[(q*31):((q*31)+mdivr)])))
+    
+    mtmin <- NULL
+    for (q in 1:mdivq){
+      mtmin <- c(mtmin, mean(as.numeric(mtmini[((q*31)-30):(q*31)])))	
+    }
+    # Then add the remainder
+    mtmin <- c(mtmin, mean(as.numeric(mtmini[(q*31):((q*31)+mdivr)])))
+    
+    mrh <- NULL
+    for (q in 1:mdivq){
+      mrh <- c(mrh, mean(as.numeric(mrhi[((q*31)-30):(q*31)])))	
+    }
+    # Then add the remainder
+    mrh <- c(mrh, mean(as.numeric(mrhi[(q*31):((q*31)+mdivr)])))
+    
+    msr <- NULL
+    for (q in 1:mdivq){
+      msr <- c(msr, mean(as.numeric(msri[((q*31)-30):(q*31)])))	
+    }
+    # Then add the remainder
+    msr <- c(msr, mean(as.numeric(msri[(q*31):((q*31)+mdivr)])))
+    
+    mws <- NULL
+    for (q in 1:mdivq){
+      mws <- c(mws, mean(as.numeric(mwsi[((q*31)-30):(q*31)])))	
+    }
+    # Then add the remainder
+    mws <- c(mws, mean(as.numeric(mwsi[(q*31):((q*31)+mdivr)])))
+  
+    ###################################
+    
+    # for (q in 1:length(mdivq)){
+    #   mrf <- c(mrf, sum(mdiv[q:31*q]))
+    # }
+    # 
+    # mrf <- c()
+    # mtmax <- c()
+    # mtmin <- c()
+    # mrh <- c()
+    # msr <- c()
+    # mws <- c()
+    
+    # for (k in 1:(length(mdiv)-1)) {
+    #   # print(k)
+    #   if(k == 1){
+    #     mrf <- c(mrf, sum(mrdi[c(mdiv[k]:mdiv[k+1])]))
+    #     mtmax <- c(mtmax, mean(as.numeric(mtmaxi[c(mdiv[k]:mdiv[k+1])])))
+    #     mtmin <- c(mtmin, mean(as.numeric(mtmini[c(mdiv[k]:mdiv[k+1])])))
+    #     mrh <- c(mrh, mean(as.numeric(mrhi[c(mdiv[k]:mdiv[k+1])])))
+    #     msr <- c(msr, mean(as.numeric(msri[c(mdiv[k]:mdiv[k+1])])))
+    #     mws <- c(mws, mean(as.numeric(mwsi[c(mdiv[k]:mdiv[k+1])])))
+    #   }else{
+    #     mrf <- c(mrf, sum(mrdi[c((mdiv[k]+1):(mdiv[k+1]))]))
+    #     mtmax <- c(mtmax, mean(as.numeric(mtmaxi[c((mdiv[k]+1):(mdiv[k+1]))])))
+    #     mtmin <- c(mtmin, mean(as.numeric(mtmini[c((mdiv[k]+1):(mdiv[k+1]))])))
+    #     mrh <- c(mrh, mean(as.numeric(mrhi[c((mdiv[k]+1):(mdiv[k+1]))])))
+    #     msr <- c(msr, mean(as.numeric(msri[c((mdiv[k]+1):(mdiv[k+1]))])))
+    #     mws <- c(mws, mean(as.numeric(mwsi[c((mdiv[k]+1):(mdiv[k+1]))])))
+    #   }
+    # }}
+    # 
+  
     if(length(mrf) > 15){## if the crop is > 15 months on the field ( to account for cassava as well)
       mrf <- c(mrf, rep("NA", 15 -length(mrf)))
       mtmax <- c(mtmax, rep("NA", 15 - length(mtmax)))
@@ -906,8 +959,7 @@ summarize_pointdata <- function(rastLayerRF_1=NULL, rastLayerRF_2=NULL,
       colname <- mws_names[h]
       gpsdata[[colname]] <- mws[h]
     }
-  }
-  
+
   
   if(planting_harvest_sameYear== TRUE){
     gpsdata$plantingYear <- str_extract(rastLayerRF_1, "[[:digit:]]+")
@@ -923,7 +975,7 @@ summarize_pointdata <- function(rastLayerRF_1=NULL, rastLayerRF_2=NULL,
   return(gpsdata)
 }
 
-
+}
 
 # 5. Extract the season rainfall parameters for point based data -------------------------------------------
 #' @description this functions loops through all .nc files (~30 -40 years) for rainfall to provide point based seasonal rainfall parameters.
@@ -984,8 +1036,8 @@ get_WeatherSummarydata <- function(country, useCaseName, Crop, AOI = FALSE, inpu
     Planting_month <- as.numeric(str_extract(Planting_month_date, "[^-]+"))
     harvest_month <- as.numeric(str_extract(Harvest_month_date, "[^-]+"))
     if(Planting_month < harvest_month){
-      planting_harvest_sameYear <- TRUE
-    }else{
+      planting_harvest_sameYear <- TRUE}
+    else{
       planting_harvest_sameYear <- FALSE
     }
     
@@ -1001,13 +1053,13 @@ get_WeatherSummarydata <- function(country, useCaseName, Crop, AOI = FALSE, inpu
     names(countryCoord) <- c("longitude", "latitude", "ID" ,"plantingDate", "harvestDate")
     ground <- countryCoord
   }else{
-    countryCoord <- unique(inputData[, c("lon", "lat", "plantingDate", "harvestDate")])
+    countryCoord <- unique(inputData[, c("longitude", "latitude", "plantingDate", "harvestDate")])
     countryCoord$ID <- c(1:nrow(countryCoord))
     countryCoord <- countryCoord[complete.cases(countryCoord), ]
     names(countryCoord) <- c("longitude", "latitude", "plantingDate", "harvestDate", "ID")
     ground <- countryCoord
-  }
   
+  }
   
   ground$Planting <- as.Date(ground$plantingDate, "%Y-%m-%d")
   ground$Harvesting <- as.Date(ground$harvestDate, "%Y-%m-%d") 
@@ -1016,12 +1068,35 @@ get_WeatherSummarydata <- function(country, useCaseName, Crop, AOI = FALSE, inpu
   ground$NAME_1 <- dd2$NAME_1
   ground$NAME_2 <- dd2$NAME_2
   
-  
-  
   ground$pyear <- as.numeric(format(as.POSIXlt(ground$plantingDate), "%Y"))
   ground <- ground[ground$pyear >= 1981, ]
   
+  # Clean the raster files
+  trf_files <- list.files(dirname(listRaster_RF)[1])
+  tmax_files <- list.files(dirname(listRaster_Tmax)[1])
+  tmin_files <- list.files(dirname(listRaster_Tmin)[1])
+  trh_files <- list.files(dirname(listRaster_RH)[1])
+  tsr_files <- list.files(dirname(listRaster_SR)[1])
+  tws_files <- list.files(dirname(listRaster_WS)[1])
   
+  tmax <- which(tmax_files %in% trf_files)
+  tmin <- which(tmin_files %in% trf_files)
+  rh <- which(trh_files %in% trf_files)
+  sr <- which(tsr_files %in% trf_files)
+  ws <- which(tws_files %in% trf_files)
+
+  length(ws)
+  tmax_files <- tmax_files[tmax]
+  tmin_files<- tmin_files[tmin]
+  trh_files <- trh_files[rh]
+  tsr_files <- tsr_files[sr]
+  tws_files <- tws_files[ws]
+  # listRaster_Tmax <- listRaster_Tmax[tmax]
+  # listRaster_Tmin <- listRaster_Tmin[tmin]
+  # listRaster_RH <- listRaster_RH[rh]
+  # listRaster_SR <- listRaster_SR[sr]
+  # listRaster_WS <- listRaster_WS[ws]
+ 
   # Compute the seasonal rainfall parameters
   if(AOI == TRUE){
     # Convert planting Date and harvesting in Julian Day 
@@ -1054,15 +1129,19 @@ get_WeatherSummarydata <- function(country, useCaseName, Crop, AOI = FALSE, inpu
       
     }
     
-   
+
     if (planting_harvest_sameYear ==  FALSE) {
       cls <- makeCluster(jobs)
       doParallel::registerDoParallel(cls)
       
+      #days <- (365 - pl_j) + hv_j
+      
+      #rasters <- days%/%31
       
       rf_result2 <- foreach(i = 1:(length(listRaster_RF)-1), .packages = c('terra', 'plyr', 'stringr','tidyr')) %dopar% {
-        source("~/agwise-datasourcing/dataops/datasourcing/Scripts/generic/get_geoSpatialData_V2.R", local = TRUE)
-        rastRF_1 <- listRaster_RF[i]
+       
+        #for ( i in 1:(length(listRaster_RF)-1)){
+         rastRF_1 <- listRaster_RF[i]
         rastRF_2 <- listRaster_RF[i+1]
         
         rastTmax_1 <- listRaster_Tmax[i]
@@ -1080,23 +1159,27 @@ get_WeatherSummarydata <- function(country, useCaseName, Crop, AOI = FALSE, inpu
         rastWS_1 <- listRaster_WS[i]
         rastWS_2 <- listRaster_WS[i+1]
         
+        print(i)
         
+        
+        source("~/agwise-datasourcing/dataops/datasourcing/Scripts/generic/get_geoSpatialData_V2.R", local = TRUE)
         summarize_pointdata(rastLayerRF_1=rastRF_1, rastLayerRF_2 = rastRF_2, 
-                            rastLayerTmax_1=rastTmax_1, rastLayerTmax_2 = rastTmax_2,
-                            rastLayerTmin_1=rastTmin_1, rastLayerTmin_2 = rastTmin_2,
-                            rastLayerRH_1=rastRH_1, rastLayerRH_2 = rastRH_2,
-                            rastLayerSR_1=rastSR_1, rastLayerSR_2 = rastSR_2,
-                            rastLayerWS_1=rastWS_1, rastLayerWS_2 = rastWS_2,
-                            gpsdata = ground, pl_j=pl_j, hv_j=hv_j, 
-                            planting_harvest_sameYear = planting_harvest_sameYear)
-      }
+                             rastLayerTmax_1=rastTmax_1, rastLayerTmax_2 = rastTmax_2,
+                             rastLayerTmin_1=rastTmin_1, rastLayerTmin_2 = rastTmin_2,
+                             rastLayerRH_1=rastRH_1, rastLayerRH_2 = rastRH_2,
+                             rastLayerSR_1=rastSR_1, rastLayerSR_2 = rastSR_2,
+                             rastLayerWS_1=rastWS_1, rastLayerWS_2 = rastWS_2,
+                             gpsdata = ground, pl_j=pl_j, hv_j=hv_j,
+                             planting_harvest_sameYear = planting_harvest_sameYear)
+
+      }   
       rainfall_points <- do.call(rbind, rf_result2)
       
-    }
     
-    stopCluster(cls)
+    
+    stopCluster(cls)}
     # Compute the seasonal rainfall parameters for trial data: having varying planting and harvest dates
-  } else {
+   else{
      
     rainfall_points <- NULL
     for(i in 1:nrow(ground)){
@@ -1207,30 +1290,78 @@ get_WeatherSummarydata <- function(country, useCaseName, Crop, AOI = FALSE, inpu
       mdiv <- unique(c(seq(1, length(mrdi), 30), length(mrdi)))
       length(mtmini)
       
-      mrf <- c()
-      mtmax <- c()
-      mtmin <- c()
-      mrh <- c()
-      msr <- c()
-      mws <- c()
-      for (k in 1:(length(mdiv)-1)) {
-        print(k)
-        if(k == 1){
-          mrf <- c(mrf, sum(mrdi[c(mdiv[k]:mdiv[k+1])]))
-          mtmax <- c(mtmax, mean(as.numeric(mtmaxi[c(mdiv[k]:mdiv[k+1])])))
-          mtmin <- c(mtmin, mean(as.numeric(mtmini[c(mdiv[k]:mdiv[k+1])])))
-          mrh <- c(mrh, mean(as.numeric(mrhi[c(mdiv[k]:mdiv[k+1])])))
-          msr <- c(msr, mean(as.numeric(msri[c(mdiv[k]:mdiv[k+1])])))
-          mws <- c(mws, mean(as.numeric(mwsi[c(mdiv[k]:mdiv[k+1])])))
-        }else{
-          mrf <- c(mrf, sum(mrdi[c((mdiv[k]+1):(mdiv[k+1]))]))
-          mtmax <- c(mtmax, mean(as.numeric(mtmaxi[c((mdiv[k]+1):(mdiv[k+1]))])))
-          mtmin <- c(mtmin, mean(as.numeric(mtmini[c((mdiv[k]+1):(mdiv[k+1]))])))
-          mrh <- c(mrh, mean(as.numeric(mrhi[c((mdiv[k]+1):(mdiv[k+1]))])))
-          msr <- c(msr, mean(as.numeric(msri[c((mdiv[k]+1):(mdiv[k+1]))])))
-          mws <- c(mws, mean(as.numeric(mwsi[c((mdiv[k]+1):(mdiv[k+1]))])))
-        }
+      mdivq <- length(mrdi)%/%31
+      mdivr <- length(mrdi)%%31
+      
+      ##################
+      mrf <- NULL
+      for (q in 1:mdivq){
+        mrf <- c(mrf, sum(mrdi[((q*31)-30):(q*31)]))	
       }
+      # Then add the remainder
+      mrf <- c(mrf, sum(mrdi[(q*31):((q*31)+mdivr)]))
+      
+      mtmax <- NULL
+      for (q in 1:mdivq){
+        mtmax <- c(mtmax, mean(as.numeric(mtmaxi[((q*31)-30):(q*31)])))	
+      }
+      # Then add the remainder
+      mtmax <- c(mtmax, mean(as.numeric(mtmaxi[(q*31):((q*31)+mdivr)])))
+      
+      mtmin <- NULL
+      for (q in 1:mdivq){
+        mtmin <- c(mtmin, mean(as.numeric(mtmini[((q*31)-30):(q*31)])))	
+      }
+      # Then add the remainder
+      mtmin <- c(mtmin, mean(as.numeric(mtmini[(q*31):((q*31)+mdivr)])))
+      
+      mrh <- NULL
+      for (q in 1:mdivq){
+        mrh <- c(mrh, mean(as.numeric(mrhi[((q*31)-30):(q*31)])))	
+      }
+      # Then add the remainder
+      mrh <- c(mrh, mean(as.numeric(mrhi[(q*31):((q*31)+mdivr)])))
+      
+      msr <- NULL
+      for (q in 1:mdivq){
+        msr <- c(msr, mean(as.numeric(msri[((q*31)-30):(q*31)])))	
+      }
+      # Then add the remainder
+      msr <- c(msr, mean(as.numeric(msri[(q*31):((q*31)+mdivr)])))
+      
+      mws <- NULL
+      for (q in 1:mdivq){
+        mws <- c(mws, mean(as.numeric(mwsi[((q*31)-30):(q*31)])))	
+      }
+      # Then add the remainder
+      mws <- c(mws, mean(as.numeric(mwsi[(q*31):((q*31)+mdivr)])))
+      
+      ###########
+      
+      # mrf <- c()
+      # mtmax <- c()
+      # mtmin <- c()
+      # mrh <- c()
+      # msr <- c()
+      # mws <- c()
+      # for (k in 1:(length(mdiv)-1)) {
+      #   print(k)
+      #   if(k == 1){
+      #     mrf <- c(mrf, sum(mrdi[c(mdiv[k]:mdiv[k+1])]))
+      #     mtmax <- c(mtmax, mean(as.numeric(mtmaxi[c(mdiv[k]:mdiv[k+1])])))
+      #     mtmin <- c(mtmin, mean(as.numeric(mtmini[c(mdiv[k]:mdiv[k+1])])))
+      #     mrh <- c(mrh, mean(as.numeric(mrhi[c(mdiv[k]:mdiv[k+1])])))
+      #     msr <- c(msr, mean(as.numeric(msri[c(mdiv[k]:mdiv[k+1])])))
+      #     mws <- c(mws, mean(as.numeric(mwsi[c(mdiv[k]:mdiv[k+1])])))
+      #   }else{
+      #     mrf <- c(mrf, sum(mrdi[c((mdiv[k]+1):(mdiv[k+1]))]))
+      #     mtmax <- c(mtmax, mean(as.numeric(mtmaxi[c((mdiv[k]+1):(mdiv[k+1]))])))
+      #     mtmin <- c(mtmin, mean(as.numeric(mtmini[c((mdiv[k]+1):(mdiv[k+1]))])))
+      #     mrh <- c(mrh, mean(as.numeric(mrhi[c((mdiv[k]+1):(mdiv[k+1]))])))
+      #     msr <- c(msr, mean(as.numeric(msri[c((mdiv[k]+1):(mdiv[k+1]))])))
+      #     mws <- c(mws, mean(as.numeric(mwsi[c((mdiv[k]+1):(mdiv[k+1]))])))
+      #   }
+      # }
       
       ## if the crop is > 15 months on the field (to make it work for cassava, hatcan have 15 months growing period)
       if(length(mrf) > 15){
@@ -1270,7 +1401,7 @@ get_WeatherSummarydata <- function(country, useCaseName, Crop, AOI = FALSE, inpu
         groundi[[colname]] <- mws[h]
       }
       
-      groundi <- subset(groundi, select=-c(Planting, Harvesting, Year))
+      groundi <- subset(groundi, select=-c(plantingDate, harvestDate, Year))
       
       rainfall_points <- bind_rows(rainfall_points, groundi)
     }
@@ -1289,9 +1420,8 @@ get_WeatherSummarydata <- function(country, useCaseName, Crop, AOI = FALSE, inpu
   saveRDS(object = rainfall_points, file=paste(pathOut, fname, sep="/"))
   
   return(rainfall_points)
+
 }
-
-
 ###############################################################################################
 ###############################################################################################
 ###############################################################################################
@@ -1487,8 +1617,8 @@ get_weather_seasonality <- function(country, useCaseName, Crop , Planting_month_
       }
       data_points <- dplyr::bind_rows(rf_result2)
       stopCluster(cls)
-    }
     
+    }   
   
   
   data_points <- data_points %>% 
@@ -1496,7 +1626,7 @@ get_weather_seasonality <- function(country, useCaseName, Crop , Planting_month_
   
   return(data_points)
 }
-
+}
 
 
 
