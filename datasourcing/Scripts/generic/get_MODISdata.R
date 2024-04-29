@@ -9,7 +9,7 @@
 #### Getting started #######
 
 # 1. Sourcing required packages -------------------------------------------
-packages_required <- c("MODIStsp", "mapedit", "leaflet", "shiny","shinydashboard","shinyFiles",
+packages_required <- c("mapedit", "leaflet", "shiny","shinydashboard","shinyFiles",
                        "shinyalert", "rappdirs","shinyjs",
                        "leafem", "mapedit", "magrittr", "reticulate", "sf", "rgee", "terra",
                        "geodata", "dplyr")
@@ -22,6 +22,10 @@ lapply(packages_required, library, character.only = TRUE)
 
 # load required packages
 suppressWarnings(suppressPackageStartupMessages(invisible(lapply(packages_required, library, character.only = TRUE))))
+
+# Specific case of MODIS package
+# Has been removed from the CRAN following the MODIS decommissioned, we load the latest version of the package locally
+library(MODIStsp, lib.loc = '~/agwise-datasourcing/dataops/datasourcing/Scripts/generic/R-Package')
 
 # 2. Downloading MODIS Data -------------------------------------------
 
