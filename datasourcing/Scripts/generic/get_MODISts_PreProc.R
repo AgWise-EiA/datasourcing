@@ -14,19 +14,20 @@
 #### Getting started #######
 
 # 1. Sourcing required packages -------------------------------------------
-packages_required <- c("plotly", "raster", "rgdal", "gridExtra", "sp", "ggplot2", "caret", "signal", "timeSeries", "zoo", "pracma", "rasterVis", "RColorBrewer", "dplyr", "terra")
+packages_required <- c("plotly", "raster", "rgdal", "gridExtra", "sp", "ggplot2", "caret", "signal", "timeSeries", "zoo", "pracma", "rasterVis", "RColorBrewer", "dplyr", "terra", "reshape2")
 
 # check and install packages that are not yet installed
 installed_packages <- packages_required %in% rownames(installed.packages())
 if(any(installed_packages == FALSE)){
   install.packages(packages_required[!installed_packages])}
-library(SpaDES.tools)
+
+#library(SpaDES.tools)
 # load required packages
 suppressWarnings(suppressPackageStartupMessages(invisible(lapply(packages_required, library, character.only = TRUE))))
 
 # 2. Preparing and Smoothing the raster time series -------------------------------------------
 
-smooth_rasterTS<-function(country, useCaseName, Planting_year, Harvesting_year, overwrite = FALSE){
+smooth_rasterTS<-function(country, useCaseName, Planting_year, Harvesting_year, overwrite = FALSE, CropMask=T){
   
   #' @description Function that will preprocess the MODIS NDVI (8 days) time series, including a masking-out of the cropped area and a gap-filling & smoothing of the TS with a Savitzky-Golay filter. If the cropping season is on a civil year, the initial TS should have 46 images, if the cropping season is between two civil years, the initial TS should have 92 images.
   #' @param country country name
@@ -34,6 +35,7 @@ smooth_rasterTS<-function(country, useCaseName, Planting_year, Harvesting_year, 
   #' @param overwrite default is FALSE 
   #' @param Planting_year the planting year in integer
   #' @param Harvesting_year the harvesting year in integer
+  #' @param CropMask default is TRUE. Does the cropland areas need to be masked?
   #'
   #' @return raster files cropped from global data and return a NDVI time series smoothed that is written out in agwise-datasourcing/dataops/datasourcing/Data/useCaseName/MODISdata/transform/NDVI
   #'
@@ -95,7 +97,7 @@ smooth_rasterTS<-function(country, useCaseName, Planting_year, Harvesting_year, 
   ## 2.4. Masking out of the cropped area ####
   
   ### 2.4.1. Get the cropland mask and resample to NDVI ####
-  cropmask <- list.files(paste0("/home/jovyan/agwise-datasourcing/dataops/datasourcing/Data/useCase_", country, "_",useCaseName, "/","MODISdata/raw/useCase_", country, "_",useCaseName,"_Boundary/CropMask"), pattern=".tif$", full.names=T)
+  cropmask <- list.files(paste0("/home/jovyan/agwise-datasourcing/dataops/datasourcing/Data/useCase_", country, "_",useCaseName, "/","MODISdata/raw/CropMask"), pattern=".tif$", full.names=T)
   cropmask <- terra::rast(cropmask)
   cropmask <- terra::mask(cropmask, countryShp)
   ## reclassification 1 = crop, na = non crop
@@ -138,7 +140,12 @@ smooth_rasterTS<-function(country, useCaseName, Planting_year, Harvesting_year, 
   ## Apply function on data (split data set) ###
 
   EVI_SGfil <- terra::app(x=stacked_EVI_s, fun)
-  EVI_SGfil <- EVI_SGfil*cropmask
+  
+  ## Cropland mask ###
+  if (CropMask == TRUE){
+    EVI_SGfil <- EVI_SGfil*cropmask
+  }
+  
   
   ## Rename the SG filter time series
   names(EVI_SGfil) <- names(stacked_EVI_s)
@@ -147,4 +154,74 @@ smooth_rasterTS<-function(country, useCaseName, Planting_year, Harvesting_year, 
   filename <- paste0(country,'_', useCaseName, '_MODIS_NDVI_', Planting_year,'_', Harvesting_year, '_SG.tif')
   terra::writeRaster(EVI_SGfil, paste(pathOut, filename, sep="/"), filetype="GTiff", overwrite=overwrite)
   
+  ## 2.7. Creating a plot to show the smoothing effect ####
+  ptAfter <- terra::spatSample(x=EVI_SGfil, size = 10, method="random", xy=TRUE, na.rm=TRUE)
+  ptBefore <- terra::extract(stacked_EVI_s, cbind.data.frame(ptAfter$x, ptAfter$y), method='simple', xy=TRUE)
+  ptBefore <- ptBefore[,-c(1)]
+  
+  date <- colnames(ptAfter[,-c(1,2)])
+  date <- strsplit(date, split="_")
+  datey<- sapply(date, "[[", 3)
+  dated<- sapply(date, "[[", 4)
+  jdate<-as.Date(paste(as.numeric(datey), as.numeric(dated), sep="-"),"%Y-%j") 
+  
+  # Example 1
+  before <- as.data.frame(t(subset(ptBefore[1,], select = -c(x, y))))
+  after <- as.data.frame(t(subset(ptAfter[1,], select = -c(x, y))))
+  
+  before$Data <- "Raw"
+  after$Data <- "Smoothed"
+  
+  before$Date <- jdate
+  after$Date <- jdate
+  
+  before$Name <- 'Example 1'
+  after$Name <- 'Example 1'
+  
+  df <- rbind.data.frame(before, after)
+  colnames(df)[1] <- 'value'
+  
+  # Example 2
+  before2 <- as.data.frame(t(subset(ptBefore[2,], select = -c(x, y))))
+  after2 <- as.data.frame(t(subset(ptAfter[2,], select = -c(x, y))))
+  
+  before2$Data <- "Raw"
+  after2$Data <- "Smoothed"
+  
+  before2$Date <- jdate
+  after2$Date <- jdate
+  
+  before2$Name <- 'Example 2'
+  after2$Name <- 'Example 2'
+  
+  df2 <- rbind.data.frame(before2, after2)
+  colnames(df2)[1] <- 'value'
+  
+  # Example 3
+  before3 <- as.data.frame(t(subset(ptBefore[3,], select = -c(x, y))))
+  after3 <- as.data.frame(t(subset(ptAfter[3,], select = -c(x, y))))
+  
+  before3$Data <- "Raw"
+  after3$Data <- "Smoothed"
+  
+  before3$Date <- jdate
+  after3$Date <- jdate
+  
+  before3$Name <- 'Example 3'
+  after3$Name <- 'Example 3'
+  
+  df3 <- rbind.data.frame(before3, after3)
+  colnames(df3)[1] <- 'value'
+  
+  df <- rbind.data.frame(df, df2, df3)
+
+  ## Plot
+  p <- ggplot(df, aes(x = Date, y = value)) + 
+    geom_line(aes(color = Data, linetype=Data), size = 0.5) +
+    scale_color_manual(values=c("black", "#E3211C")) +
+    theme_minimal()+ ylab("NDVI")+ggtitle(label = "Smoothing noisy NDVI time series with \nSavitzky Golay filter", subtitle= paste(country, useCaseName, sep=" "))+
+    facet_grid(Name ~.)
+  
+  ggsave(paste0(pathOut,"/useCase_", country, "_",useCaseName,"_",Planting_year,"_",Harvesting_year,"_Smoothing.pdf"), plot=p, dpi=300, width = 4, height=4, units=c("in"))
+  ggsave(paste0(pathOut,"/useCase_", country, "_",useCaseName,"_",Planting_year,"_",Harvesting_year,"_Smoothing.png"), plot=p, dpi=300, width = 4, height=4, units=c("in"))
 }
