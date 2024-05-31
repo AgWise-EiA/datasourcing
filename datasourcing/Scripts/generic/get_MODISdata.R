@@ -12,7 +12,7 @@
 packages_required <- c("mapedit", "leaflet", "shiny","shinydashboard","shinyFiles",
                        "shinyalert", "rappdirs","shinyjs",
                        "leafem", "mapedit", "magrittr", "reticulate", "sf", "rgee", "terra",
-                       "geodata", "dplyr")
+                       "geodata", "dplyr", 'ggspatial', "ggplot2")
 
 installed_packages <- packages_required %in% rownames(installed.packages())
 if(any(installed_packages == FALSE)){
@@ -57,7 +57,7 @@ download_MODIS<-function(country,useCaseName, level=0, admin_unit_name=NULL, Sta
   ### 2.1.2. Get the country boundaries ####
   
   # Read the relevant shape file from gdam to be used to crop the global data
-  countryShp <- geodata::gadm(country, level, path='.')
+  countryShp <- geodata::gadm(country, level, path= pathOut)
 
   # Case admin_unit_name == NULL
   if (is.null(admin_unit_name)){
@@ -127,6 +127,43 @@ download_MODIS<-function(country,useCaseName, level=0, admin_unit_name=NULL, Sta
   files <- list.files(path = paste0(pathOut, "useCase_", country, "_",useCaseName,"_Boundary/VI_16Days_250m_v61/NDVI/"), pattern = "MYD13Q*", full.names = TRUE)
   new_names <- sub(pattern = "MYD13Q1", replacement = country, x = files)
   file.rename(from = files, to = new_names)
+  
+  ## 2.4. Create a Gif ####
+  # files <- list.files(path = paste0(pathOut, "useCase_", country, "_",useCaseName,"_Boundary/VI_16Days_250m_v61/NDVI/"), pattern = ".tiff*", full.names = TRUE)
+  # modis <- terra::rast(files)
+  # 
+  # # Define the limits
+  # ndvi.min <- min(modis, na.rm=FALSE)
+  # ndvi.min <- min(terra::values(ndvi.min), na.rm=TRUE)
+  # 
+  # ndvi.max <- max(modis, na.rm=FALSE)
+  # ndvi.max <- max(terra::values(ndvi.max), na.rm=TRUE)
+  # 
+  # lims <- c(ndvi.min, ndvi.max)
+  # 
+  # country_sf <- sf::st_as_sf(countryShp)
+  # 
+  # for (i in 1:len(names(modis))){
+  #   name <- names(modis)[i]
+  #   p <- ggplot() +
+  #     geom_spatraster(data = modis[[i]]) +
+  #     scale_fill_hypso_c(palette = "dem_screen", na.value = "transparent", trans='reverse', name="NDVI")+ theme_bw()+
+  #     theme(legend.position = "right")+ 
+  #     geom_sf(data=country_sf, fill=NA, color="white", linewidth=0.5)+
+  #     coord_sf(expand = FALSE)+
+  #     xlab("Longitude")+ ylab("Latitude") + labs(title= paste0(country, '-', useCaseName, " from ", Planting_year, " to ", Harvesting_year),
+  #                   subtitle = name, caption = "MODIS NDVI, 250-m spatial res and 8-days temporal res" )+
+  #     annotation_scale(style='bar', location='bl')+annotation_north_arrow(which_north = "true", location='tr', height=unit(1, 'cm'), width=unit(1, 'cm'))
+  #   map_name <- paste0(pathOut, "useCase_", country, "_",useCaseName,"_Boundary/VI_16Days_250m_v61/NDVI/", name, "_animate.png")
+  #   ggsave(map_name, p, width=8, height = 5.10)
+  #  
+    #https://www.youtube.com/watch?v=GMnuNjnXnS8
+    #https://dieghernan.github.io/tidyterra/reference/scale_hypso.html
+    
+  #}
+  
+  ## Delete the GDAM folder
+  unlink(paste0(pathOut, '/gadm'), force=TRUE, recursive = TRUE)
 }
 
 # country = "Kenya"
