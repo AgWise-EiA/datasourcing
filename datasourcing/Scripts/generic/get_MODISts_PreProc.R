@@ -14,7 +14,7 @@
 #### Getting started #######
 
 # 1. Sourcing required packages -------------------------------------------
-packages_required <- c("plotly", "raster", "rgdal", "gridExtra", "sp", "ggplot2", "caret", "signal", "timeSeries", "zoo", "pracma", "rasterVis", "RColorBrewer", "dplyr", "terra", "reshape2")
+packages_required <- c("plotly", "raster", "rgdal", "gridExtra", "sp", "ggplot2", "caret", "signal", "timeSeries", "zoo", "pracma", "rasterVis", "RColorBrewer", "dplyr", "terra")
 
 # check and install packages that are not yet installed
 installed_packages <- packages_required %in% rownames(installed.packages())
@@ -55,7 +55,15 @@ smooth_rasterTS<-function(country, useCaseName, Planting_year, Harvesting_year, 
   countryShp <- terra::vect(list.files(paste0("/home/jovyan/agwise-datasourcing/dataops/datasourcing/Data/useCase_", country, "_",useCaseName, "/","MODISdata/raw/"), pattern="Boundary.shp$", full.names=T))
   
   ### 2.2.2. Get the NDVI time series ####
-  listRaster_EVI <-list.files(paste0("/home/jovyan/agwise-datasourcing/dataops/datasourcing/Data/useCase_", country, "_",useCaseName, "/","MODISdata/raw/useCase_", country, "_",useCaseName,"_Boundary/VI_16Days_250m_v61/NDVI/"), pattern=".tif$", full.names=T)
+  ## Open in the good order the files
+  ## Order the files in the folder
+  list.f <- list.files(path=paste0("/home/jovyan/agwise-datasourcing/dataops/datasourcing/Data/useCase_", country, "_",useCaseName, "/","MODISdata/raw/useCase_", country, "_",useCaseName,"_Boundary/VI_16Days_250m_v61/NDVI/"), pattern=".tif$")
+  list.f <- list.f[order(substr(list.f, nchar(list.f)-7, nchar(list.f)-4))]
+  
+  # Reconstruct the full names
+  listRaster_EVI <- paste0("/home/jovyan/agwise-datasourcing/dataops/datasourcing/Data/useCase_", country, "_",useCaseName, "/","MODISdata/raw/useCase_", country, "_",useCaseName,"_Boundary/VI_16Days_250m_v61/NDVI/", list.f)
+  
+  #listRaster_EVI <-list.files(paste0("/home/jovyan/agwise-datasourcing/dataops/datasourcing/Data/useCase_", country, "_",useCaseName, "/","MODISdata/raw/useCase_", country, "_",useCaseName,"_Boundary/VI_16Days_250m_v61/NDVI/"), pattern=".tif$", full.names=T)
   stacked_EVI <- terra::rast(listRaster_EVI) #stack
   
   ## 2.3. Subsetting the year of analysis ####
@@ -219,9 +227,9 @@ smooth_rasterTS<-function(country, useCaseName, Planting_year, Harvesting_year, 
   p <- ggplot(df, aes(x = Date, y = value)) + 
     geom_line(aes(color = Data, linetype=Data), size = 0.5) +
     scale_color_manual(values=c("black", "#E3211C")) +
-    theme_minimal()+ ylab("NDVI")+ggtitle(label = "Smoothing noisy NDVI time series with \nSavitzky Golay filter", subtitle= paste(country, useCaseName, sep=" "))+
+    theme_minimal()+ ylab("NDVI")+ggtitle(label = "Smoothing noisy NDVI time series with \nthe Savitzky Golay filter", subtitle= paste(country, useCaseName, sep=" "))+
     facet_grid(Name ~.)
   
-  ggsave(paste0(pathOut,"/useCase_", country, "_",useCaseName,"_",Planting_year,"_",Harvesting_year,"_Smoothing.pdf"), plot=p, dpi=300, width = 4, height=4, units=c("in"))
-  ggsave(paste0(pathOut,"/useCase_", country, "_",useCaseName,"_",Planting_year,"_",Harvesting_year,"_Smoothing.png"), plot=p, dpi=300, width = 4, height=4, units=c("in"))
+  ggsave(paste0(pathOut,"/useCase_", country, "_",useCaseName,"_",Planting_year,"_",Harvesting_year,"_Smoothing.pdf"), plot=p, dpi=300, width = 5, height=4, units=c("in"))
+  ggsave(paste0(pathOut,"/useCase_", country, "_",useCaseName,"_",Planting_year,"_",Harvesting_year,"_Smoothing.png"), plot=p, dpi=300, width = 5, height=4, units=c("in"))
 }
