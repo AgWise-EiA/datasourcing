@@ -119,7 +119,7 @@ smooth_rasterTS<-function(country, useCaseName, Planting_year, Harvesting_year, 
   
   ## Cropland mask ###
   if (CropMask == TRUE){
-    EVI_SGfil <- EVI_SGfil*cropmask
+    stacked_EVI_s <-stacked_EVI_s*cropmask
   }
   
   ## 2.5. Applying Savitzky-Golay filter ####
