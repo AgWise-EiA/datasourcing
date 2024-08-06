@@ -116,7 +116,12 @@ smooth_rasterTS<-function(country, useCaseName, Planting_year, Harvesting_year, 
   ## crop and mask cropland
   #stacked_EVI_s <- stacked_EVI_s/10000 ## scaling to NDVI value ranges from -1 to +1
   #stacked_EVI_s <- stacked_EVI_s * cropmask
-
+  
+  ## Cropland mask ###
+  if (CropMask == TRUE){
+    EVI_SGfil <- EVI_SGfil*cropmask
+  }
+  
   ## 2.5. Applying Savitzky-Golay filter ####
   ## Split the raster into 16 parts to speed the process ##
   #y <- SpaDES.tools::splitRaster(stacked_EVI_s, nx=4,ny=4)
@@ -148,12 +153,6 @@ smooth_rasterTS<-function(country, useCaseName, Planting_year, Harvesting_year, 
   ## Apply function on data (split data set) ###
 
   EVI_SGfil <- terra::app(x=stacked_EVI_s, fun)
-  
-  ## Cropland mask ###
-  if (CropMask == TRUE){
-    EVI_SGfil <- EVI_SGfil*cropmask
-  }
-  
   
   ## Rename the SG filter time series
   names(EVI_SGfil) <- names(stacked_EVI_s)
