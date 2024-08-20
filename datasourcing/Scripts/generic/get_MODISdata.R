@@ -166,8 +166,8 @@ download_MODIS<-function(country,useCaseName, level=0, admin_unit_name=NULL, Sta
   year_aqua <- year(time(modis_aqua)) #for Aqua
   
   # Set names
-  names(modis_terra) <- paste0(country,'_NDVI_',doy_terra,'_', year_terra) #for Terra
-  names(modis_aqua) <- paste0(country,'_NDVI_',doy_aqua,'_', year_aqua) #for Aqua
+  names(modis_terra) <- paste0(country,'_NDVI_',year_terra,'_', doy_terra) #for Terra
+  names(modis_aqua) <- paste0(country,'_NDVI_',year_aqua,'_', doy_aqua) #for Aqua
   
   ### 2.2.3. Save the MODIS data ####
   terra::writeRaster(modis_terra, filename=paste0(to.dir, '/',names(modis_terra), ".tif"), overwrite=TRUE)
