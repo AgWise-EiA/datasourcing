@@ -57,12 +57,12 @@ smooth_rasterTS<-function(country, useCaseName, Planting_year, Harvesting_year, 
   ### 2.2.2. Get the NDVI time series ####
   ## Open in the good order the files
   ## Order the files in the folder
-  list.f <- list.files(path=paste0("/home/jovyan/agwise-datasourcing/dataops/datasourcing/Data/useCase_", country, "_",useCaseName, "/","MODISdata/raw/useCase_", country, "_",useCaseName,"_Boundary/VI_16Days_250m_v61/NDVI/"), pattern=".tif$")
-  list.f <- list.f[order(substr(list.f, nchar(list.f)-7, nchar(list.f)-4))]
+  list.f <- list.files(path=paste0("/home/jovyan/agwise-datasourcing/dataops/datasourcing/Data/useCase_", country, "_",useCaseName, "/","MODISdata/raw/useCase_", country, "_",useCaseName,"_Boundary/VI_16Days_250m_v61/NDVI/"), pattern=".tif$", full.names = T)
+  #list.f <- list.f[order(substr(list.f, nchar(list.f)-7, nchar(list.f)-4))]
   
   # Reconstruct the full names
-  listRaster_EVI <- paste0("/home/jovyan/agwise-datasourcing/dataops/datasourcing/Data/useCase_", country, "_",useCaseName, "/","MODISdata/raw/useCase_", country, "_",useCaseName,"_Boundary/VI_16Days_250m_v61/NDVI/", list.f)
-  
+  #listRaster_EVI <- paste0("/home/jovyan/agwise-datasourcing/dataops/datasourcing/Data/useCase_", country, "_",useCaseName, "/","MODISdata/raw/useCase_", country, "_",useCaseName,"_Boundary/VI_16Days_250m_v61/NDVI/", list.f)
+  listRaster_EVI <- list.f
   #listRaster_EVI <-list.files(paste0("/home/jovyan/agwise-datasourcing/dataops/datasourcing/Data/useCase_", country, "_",useCaseName, "/","MODISdata/raw/useCase_", country, "_",useCaseName,"_Boundary/VI_16Days_250m_v61/NDVI/"), pattern=".tif$", full.names=T)
   stacked_EVI <- terra::rast(listRaster_EVI) #stack
   
