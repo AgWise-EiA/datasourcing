@@ -21,6 +21,8 @@ lapply(packages_required, library, character.only = TRUE)
 suppressWarnings(suppressPackageStartupMessages(invisible(lapply(packages_required, library, character.only = TRUE))))
 
 
+
+
 # 2. Downloading MODIS Data -------------------------------------------
 
 download_MODIS<-function(country,useCaseName, level=0, admin_unit_name=NULL, Start_year, End_year, overwrite=FALSE){
@@ -86,6 +88,7 @@ download_MODIS<-function(country,useCaseName, level=0, admin_unit_name=NULL, Sta
   
   ## Extent and time range of interest
   roi <- st_as_sf(countryShp)
+  roi <- st_cast(roi, to = "POLYGON")
   roi$id <- seq(1:nrow(roi))
   
   start_date = paste0(Start_year,'-01-05')
