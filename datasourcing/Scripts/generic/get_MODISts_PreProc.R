@@ -14,8 +14,8 @@
 #### Getting started #######
 
 # 1. Sourcing required packages -------------------------------------------
-packages_required <- c("plotly", "raster", "rgdal", "gridExtra", "sp", "ggplot2", "caret", "signal", "timeSeries", "zoo", "pracma", "rasterVis", "RColorBrewer", "dplyr", "terra")
-
+packages_required <- c("plotly", "raster", "gridExtra", "sp", "ggplot2", "caret", "signal", "timeSeries", "zoo", "pracma", "rasterVis", "RColorBrewer", "dplyr", "terra")
+#rgdal
 # check and install packages that are not yet installed
 installed_packages <- packages_required %in% rownames(installed.packages())
 if(any(installed_packages == FALSE)){
@@ -52,7 +52,7 @@ smooth_rasterTS<-function(country, useCaseName, Planting_year, Harvesting_year, 
   ## 2.2. Read  and scale the raster and shape data ####
   ### 2.2.1. Get the country boundaries ####
   # Read the relevant shape file from gdam to be used to crop the data
-  countryShp <- terra::vect(list.files(paste0("/home/jovyan/agwise-datasourcing/dataops/datasourcing/Data/useCase_", country, "_",useCaseName, "/","MODISdata/raw/"), pattern="Boundary.shp$", full.names=T))
+  countryShp <- terra::vect(list.files(paste0("/home/jovyan/agwise-datasourcing/dataops/datasourcing/Data/useCase_", country, "_",useCaseName, "/","MODISdata/raw/useCase_", country, "_",useCaseName,"_Boundary/VI_16Days_250m_v61/"), pattern="Boundary.shp$", full.names=T))
   
   ### 2.2.2. Get the NDVI time series ####
   ## Open in the good order the files
@@ -105,20 +105,20 @@ smooth_rasterTS<-function(country, useCaseName, Planting_year, Harvesting_year, 
   ## 2.4. Masking out of the cropped area ####
   
   ### 2.4.1. Get the cropland mask and resample to NDVI ####
-  cropmask <- list.files(paste0("/home/jovyan/agwise-datasourcing/dataops/datasourcing/Data/useCase_", country, "_",useCaseName, "/","MODISdata/raw/CropMask"), pattern=".tif$", full.names=T)
-  cropmask <- terra::rast(cropmask)
-  cropmask <- terra::mask(cropmask, countryShp)
-  ## reclassification 1 = crop, na = non crop
-  m1 <- cbind(c(40), 1)
-  cropmask <- terra::classify(cropmask, m1, others=NA)
-  cropmask <- terra::resample(cropmask, stacked_EVI_s)
-  
-  ## crop and mask cropland
-  #stacked_EVI_s <- stacked_EVI_s/10000 ## scaling to NDVI value ranges from -1 to +1
-  #stacked_EVI_s <- stacked_EVI_s * cropmask
-  
   ## Cropland mask ###
   if (CropMask == TRUE){
+    
+    cropmask <- list.files(paste0("/home/jovyan/agwise-datasourcing/dataops/datasourcing/Data/useCase_", country, "_",useCaseName, "/","MODISdata/raw/CropMask"), pattern=".tif$", full.names=T)
+    cropmask <- terra::rast(cropmask)
+    cropmask <- terra::mask(cropmask, countryShp)
+    ## reclassification 1 = crop, na = non crop
+    m1 <- cbind(c(40), 1)
+    cropmask <- terra::classify(cropmask, m1, others=NA)
+    cropmask <- terra::resample(cropmask, stacked_EVI_s)
+    
+    ## crop and mask cropland
+    #stacked_EVI_s <- stacked_EVI_s/10000 ## scaling to NDVI value ranges from -1 to +1
+    #stacked_EVI_s <- stacked_EVI_s * cropmask
     stacked_EVI_s <-stacked_EVI_s*cropmask
   }
   
